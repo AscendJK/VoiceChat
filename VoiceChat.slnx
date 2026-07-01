@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="VoiceChat.App/VoiceChat.App.csproj" />
+  <Project Path="VoiceChat.Core/VoiceChat.Core.csproj" />
+</Solution>

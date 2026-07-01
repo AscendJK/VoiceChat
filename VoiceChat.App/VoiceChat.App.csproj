@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VoiceChat.Core\VoiceChat.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="VoiceChat.App.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>VoiceChat.App.ico</ApplicationIcon>
+  </PropertyGroup>
+
+</Project>
