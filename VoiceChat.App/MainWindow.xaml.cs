@@ -9,6 +9,7 @@ namespace VoiceChat.App;
 public partial class MainWindow : Window
 {
     internal readonly MainViewModel _viewModel;
+    private bool _pttKeyDown;
 
     public MainWindow()
     {
@@ -23,27 +24,29 @@ public partial class MainWindow : Window
 
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (_viewModel.AudioSettings.PushToTalkEnabled && !_viewModel.RoomSession.IsMuted)
+        if (!_viewModel.AudioSettings.PushToTalkEnabled) return;
+        if (_viewModel.RoomSession.IsMuted) return;
+
+        // 获取实际按键名（处理 LeftCtrl vs RightCtrl）
+        var keyName = e.Key == Key.System ? e.SystemKey.ToString() : e.Key.ToString();
+        if (keyName == _viewModel.AudioSettings.PushToTalkKey && !_pttKeyDown)
         {
-            var keyName = e.Key.ToString();
-            if (keyName == _viewModel.AudioSettings.PushToTalkKey)
-            {
-                _viewModel.AudioSettings.OnPushToTalkKeyDown();
-                e.Handled = true;
-            }
+            _pttKeyDown = true;
+            _viewModel.AudioSettings.OnPushToTalkKeyDown();
+            e.Handled = true;
         }
     }
 
     private void MainWindow_PreviewKeyUp(object sender, KeyEventArgs e)
     {
-        if (_viewModel.AudioSettings.PushToTalkEnabled)
+        if (!_viewModel.AudioSettings.PushToTalkEnabled) return;
+
+        var keyName = e.Key == Key.System ? e.SystemKey.ToString() : e.Key.ToString();
+        if (keyName == _viewModel.AudioSettings.PushToTalkKey && _pttKeyDown)
         {
-            var keyName = e.Key.ToString();
-            if (keyName == _viewModel.AudioSettings.PushToTalkKey)
-            {
-                _viewModel.AudioSettings.OnPushToTalkKeyUp();
-                e.Handled = true;
-            }
+            _pttKeyDown = false;
+            _viewModel.AudioSettings.OnPushToTalkKeyUp();
+            e.Handled = true;
         }
     }
 
@@ -57,9 +60,7 @@ public partial class MainWindow : Window
         PreviewKeyDown -= MainWindow_PreviewKeyDown;
         PreviewKeyUp -= MainWindow_PreviewKeyUp;
         base.OnClosed(e);
-        // 异步关闭：先通知对端（RoomDissolved/LeaveRequest），再释放资源
         try { await _viewModel.ShutdownAsync(); } catch { }
-        // 释放 ViewModel 资源（停止定时器、释放 RoomSession/RoomHost/RoomClient）
         _viewModel.Dispose();
     }
 }

@@ -138,16 +138,16 @@
                         <CheckBox IsChecked="{Binding AudioSettings.PushToTalkEnabled}" Content="🗣️ 按键说话" FontSize="13" Foreground="{DynamicResource PrimaryText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                         <TextBlock Text="按键：" FontSize="12" Foreground="{DynamicResource SecondaryText}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                         <ComboBox SelectedItem="{Binding AudioSettings.PushToTalkKey}" Width="120" Height="28" VerticalAlignment="Center" IsEnabled="{Binding AudioSettings.PushToTalkEnabled}">
-                            <ComboBoxItem Content="None"/>
-                            <ComboBoxItem Content="LeftCtrl"/>
-                            <ComboBoxItem Content="RightCtrl"/>
-                            <ComboBoxItem Content="LeftShift"/>
-                            <ComboBoxItem Content="RightShift"/>
-                            <ComboBoxItem Content="Space"/>
-                            <ComboBoxItem Content="Z"/>
-                            <ComboBoxItem Content="X"/>
-                            <ComboBoxItem Content="C"/>
-                            <ComboBoxItem Content="V"/>
+                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">None</sys:String>
+                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">LeftCtrl</sys:String>
+                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">RightCtrl</sys:String>
+                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">LeftShift</sys:String>
+                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">RightShift</sys:String>
+                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">Space</sys:String>
+                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">Z</sys:String>
+                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">X</sys:String>
+                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">C</sys:String>
+                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">V</sys:String>
                         </ComboBox>
                     </StackPanel>
                 </StackPanel>

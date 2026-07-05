@@ -17,6 +17,7 @@ public partial class App : System.Windows.Application
     private static extern uint timeEndPeriod(uint uPeriod);
 
     private TrayIconService? _trayIcon;
+    private bool _isExiting;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -40,17 +41,19 @@ public partial class App : System.Windows.Application
             }),
             exitApp: () => mainWindow.Dispatcher.Invoke(async () =>
             {
+                _isExiting = true;
                 _trayIcon?.Hide();
                 await mainWindow._viewModel.ShutdownAsync();
                 mainWindow._viewModel.Dispose();
                 mainWindow.Close();
+                Shutdown();
             })
         );
 
         // 最小化到托盘
         mainWindow.StateChanged += (s, args) =>
         {
-            if (mainWindow.WindowState == WindowState.Minimized)
+            if (mainWindow.WindowState == WindowState.Minimized && !_isExiting)
             {
                 mainWindow.Hide();
                 _trayIcon.Show();
@@ -59,10 +62,13 @@ public partial class App : System.Windows.Application
 
         mainWindow.Closing += (s, args) =>
         {
-            // 关闭时隐藏到托盘而不是退出
-            args.Cancel = true;
-            mainWindow.Hide();
-            _trayIcon.Show();
+            if (!_isExiting)
+            {
+                // 关闭时隐藏到托盘而不是退出
+                args.Cancel = true;
+                mainWindow.Hide();
+                _trayIcon.Show();
+            }
         };
 
         // 主窗口渲染完成后，等设备初始化完毕再关闭闪屏

@@ -36,6 +36,12 @@
     <SolidColorBrush x:Key="SeparatorBrush" Color="#2A2A4A"/>
     <SolidColorBrush x:Key="ProgressBarForeground" Color="#4A90D9"/>
 
+    <!-- ComboBox 样式 -->
+    <Style TargetType="ComboBox">
+        <Setter Property="Foreground" Value="#E0E0E0"/>
+        <Setter Property="Background" Value="#1A1A2E"/>
+    </Style>
+
     <!-- ComboBox 下拉项样式 -->
     <Style TargetType="ComboBoxItem">
         <Setter Property="Foreground" Value="#E0E0E0"/>
