@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using VoiceChat.App.ViewModels;
 
 namespace VoiceChat.App;

@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Markup;
 using System.Windows.Media;
+using Brush = System.Windows.Media.Brush;
 
 namespace VoiceChat.App;
 
