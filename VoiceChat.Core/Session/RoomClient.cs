@@ -348,6 +348,7 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
             {
                 // 重建所有组件
                 var room = _lastRoom;
+                if (room == null) return;
                 var q = room.Quality ?? VoiceQuality.Standard;
 
                 _audioCapture = new AudioCapture
@@ -394,15 +395,18 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
                     if (MemberId != null && _voiceSender != null)
                         _voiceSender.UserId = MemberId;
 
-                    if (_signalingClient.HostMember?.VoiceEndPoint != null)
+                    if (_signalingClient?.HostMember?.VoiceEndPoint != null && _voiceSender != null)
                     {
                         _voiceSender.AddEndpoint(_signalingClient.HostMember.Id, _signalingClient.HostMember.VoiceEndPoint);
                     }
 
-                    foreach (var member in _signalingClient.Members)
+                    if (_voiceSender != null)
                     {
-                        if (member.VoiceEndPoint != null)
-                            _voiceSender.AddEndpoint(member.Id, member.VoiceEndPoint);
+                        foreach (var member in _signalingClient?.Members ?? new List<RoomMember>())
+                        {
+                            if (member.VoiceEndPoint != null)
+                                _voiceSender.AddEndpoint(member.Id, member.VoiceEndPoint);
+                        }
                     }
 
                     _audioCapture.Start();
