@@ -299,7 +299,7 @@
                                 </Grid>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                     <TextBlock Text="音质：" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource SecondaryText}" Margin="0,0,8,0"/>
-                                    <ComboBox ItemsSource="{Binding AudioSettings.QualityOptions}" SelectedIndex="{Binding AudioSettings.SelectedQualityIndex}" IsEnabled="{Binding AudioSettings.CanChangeQuality}" Style="{StaticResource QualityComboBox}" Width="140" Height="28"/>
+                                    <ComboBox ItemsSource="{Binding AudioSettings.QualityOptions}" SelectedIndex="{Binding AudioSettings.SelectedQualityIndex}" IsEnabled="{Binding AudioSettings.CanChangeQuality}" Style="{StaticResource QualityComboBox}" Width="180" Height="28"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

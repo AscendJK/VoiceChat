@@ -21,6 +21,7 @@ public class UserSettings
     public int QualityIndex { get; set; } = 2;
     public string UserName { get; set; } = Environment.UserName;
     public string RoomName { get; set; } = $"{Environment.UserName}的房间";
+    public bool IsDarkMode { get; set; }
 
     private static UserSettings? _instance;
     public static UserSettings Instance => _instance ??= Load();

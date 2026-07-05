@@ -24,6 +24,9 @@ public partial class App : System.Windows.Application
         base.OnStartup(e);
         timeBeginPeriod(1);
 
+        // 加载保存的主题
+        ThemeService.LoadSavedTheme();
+
         // 先显示闪屏（立即出现）
         var splash = new SplashWindow();
         splash.Show();

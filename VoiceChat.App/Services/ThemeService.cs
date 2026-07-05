@@ -23,6 +23,7 @@ public static class ThemeService
         dict.Add(new ResourceDictionary { Source = dark ? DarkThemeUri : LightThemeUri });
 
         // 保存设置
+        UserSettings.Instance.IsDarkMode = dark;
         UserSettings.Instance.Save();
     }
 
@@ -33,7 +34,6 @@ public static class ThemeService
 
     public static void LoadSavedTheme()
     {
-        // 默认浅色主题
-        ApplyTheme(false);
+        ApplyTheme(UserSettings.Instance.IsDarkMode);
     }
 }
