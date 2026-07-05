@@ -63,7 +63,7 @@ public partial class NetworkStatsViewModel : ObservableObject
     private long _lastSentBytes;
     private long _lastReceivedBytes;
 
-    public void UpdateStats(long totalSentBytes, long totalReceivedBytes, long totalSentPackets, long totalLostPackets, long totalReceivedPackets)
+    public void UpdateStats(long totalSentBytes, long totalReceivedBytes, long totalSentPackets, long totalLostPackets, long totalReceivedPackets, int latencyMs = 0)
     {
         SentBytesPerSecond = (totalSentBytes - _lastSentBytes);
         ReceivedBytesPerSecond = (totalReceivedBytes - _lastReceivedBytes);
@@ -73,6 +73,7 @@ public partial class NetworkStatsViewModel : ObservableObject
         SentPackets = totalSentPackets;
         ReceivedPackets = totalReceivedPackets;
         LostPackets = totalLostPackets;
+        Latency = latencyMs;
 
         long totalExpected = totalReceivedPackets + totalLostPackets;
         PacketLossRate = totalExpected > 0 ? (double)totalLostPackets / totalExpected * 100 : 0;

@@ -196,9 +196,15 @@ public partial class MainViewModel : ObservableObject
                 var recv = _roomHost.GetReceiveStats();
                 if (send != null && recv != null)
                 {
+                    // 计算延迟：最后接收时间与当前时间的差值
+                    long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    long lastRecv = _roomHost.LastReceiveTimestamp;
+                    int latency = lastRecv > 0 ? (int)(now - lastRecv) : 0;
+
                     NetworkStats.UpdateStats(
                         send.SentBytes, recv.ReceivedBytes,
-                        send.SentPackets, recv.LostPackets, recv.ReceivedPackets);
+                        send.SentPackets, recv.LostPackets, recv.ReceivedPackets,
+                        latency);
                 }
             }
             else if (_roomClient != null)
@@ -207,9 +213,14 @@ public partial class MainViewModel : ObservableObject
                 var recv = _roomClient.GetReceiveStats();
                 if (send != null && recv != null)
                 {
+                    long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    long lastRecv = _roomClient.LastReceiveTimestamp;
+                    int latency = lastRecv > 0 ? (int)(now - lastRecv) : 0;
+
                     NetworkStats.UpdateStats(
                         send.SentBytes, recv.ReceivedBytes,
-                        send.SentPackets, recv.LostPackets, recv.ReceivedPackets);
+                        send.SentPackets, recv.LostPackets, recv.ReceivedPackets,
+                        latency);
                 }
             }
         };

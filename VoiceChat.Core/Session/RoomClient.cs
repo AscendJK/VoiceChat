@@ -51,6 +51,12 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
     /// </summary>
     public VoiceReceiveStats? GetReceiveStats() => _voiceReceiver?.Stats;
 
+    /// <summary>
+    /// 最后收到语音包的时间戳（UTC 毫秒）
+    /// </summary>
+    public long LastReceiveTimestamp => Interlocked.Read(ref _lastReceiveTimestamp);
+    private long _lastReceiveTimestamp;
+
     public event Action<RoomInfo>? OnConnected;
     public event Action? OnDisconnected;
     public event Action<RoomMember>? OnMemberJoined;
@@ -597,6 +603,9 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
     private void HandleVoiceReceived(VoicePacket packet)
     {
         if (_codec == null || _audioPlayer == null) return;
+
+        // 记录最后接收时间戳（用于延迟计算）
+        Interlocked.Exchange(ref _lastReceiveTimestamp, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
         // 标记该用户正在说话（UI显示绿色指示器）
         OnUserSpeaking?.Invoke(packet.UserId);
