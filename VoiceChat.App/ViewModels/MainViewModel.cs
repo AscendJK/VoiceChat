@@ -86,6 +86,13 @@ public partial class MainViewModel : ObservableObject
             {
                 AudioSettings.PushToTalkPressed += OnPushToTalkPressed;
                 AudioSettings.PushToTalkReleased += OnPushToTalkReleased;
+
+                // PTT 模式下，立即停止自动采集（等按键时再启动）
+                if (AudioSettings.PushToTalkEnabled)
+                {
+                    host?.GetAudioCapture()?.Stop();
+                    client?.GetAudioCapture()?.Stop();
+                }
             }
 
             // 更新网络统计

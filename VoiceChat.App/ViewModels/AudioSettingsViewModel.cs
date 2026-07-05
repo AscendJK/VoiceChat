@@ -70,7 +70,7 @@ public partial class AudioSettingsViewModel : ObservableObject
 
     public void OnPushToTalkKeyDown()
     {
-        if (PushToTalkEnabled && _roomHost != null || _roomClient != null)
+        if (PushToTalkEnabled && (_roomHost != null || _roomClient != null))
             PushToTalkPressed?.Invoke();
     }
 
