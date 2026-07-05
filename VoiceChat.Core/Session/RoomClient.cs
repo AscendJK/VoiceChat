@@ -54,6 +54,19 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
     /// </summary>
     public event Action<string>? OnStats;
     public event Action<float>? OnInputVolumeChanged;
+    /// <summary>重连状态变化（attemptCount, maxAttempts）</summary>
+    public event Action<int, int>? OnReconnecting;
+    /// <summary>重连成功</summary>
+    public event Action? OnReconnected;
+
+    // 重连参数
+    private RoomInfo? _lastRoom;
+    private string? _lastUserName;
+    private string? _lastPassword;
+    private CancellationTokenSource? _reconnectCts;
+    private Task? _reconnectTask;
+    private const int MaxReconnectAttempts = 5;
+    private bool _intentionalDisconnect;
 
     public async Task<bool> ConnectAsync(RoomInfo room, string userName, string? password = null, CancellationToken cancellationToken = default)
     {
@@ -63,6 +76,12 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
             OnError?.Invoke("已连接到房间，请先断开当前连接");
             return false;
         }
+
+        // 保存连接参数（用于重连）
+        _lastRoom = room;
+        _lastUserName = userName;
+        _lastPassword = password;
+        _intentionalDisconnect = false;
 
         try
         {
@@ -183,6 +202,8 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
     public async Task DisconnectAsync()
     {
         if (!IsConnected) return;
+        _intentionalDisconnect = true;
+        _reconnectCts?.Cancel();
 
         try
         {
@@ -294,6 +315,136 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
     private void HandleDisconnected()
     {
         OnDisconnected?.Invoke();
+
+        // 非主动断开时尝试重连
+        if (!_intentionalDisconnect && _lastRoom != null && _lastUserName != null)
+        {
+            StartReconnect();
+        }
+    }
+
+    private void StartReconnect()
+    {
+        _reconnectCts?.Cancel();
+        _reconnectCts = new CancellationTokenSource();
+        _reconnectTask = Task.Run(() => ReconnectLoop(_reconnectCts.Token));
+    }
+
+    private async Task ReconnectLoop(CancellationToken cancellationToken)
+    {
+        for (int attempt = 1; attempt <= MaxReconnectAttempts; attempt++)
+        {
+            if (cancellationToken.IsCancellationRequested || _intentionalDisconnect) return;
+
+            OnReconnecting?.Invoke(attempt, MaxReconnectAttempts);
+
+            // 指数退避：1s, 2s, 4s, 8s, 16s
+            int delayMs = (int)Math.Pow(2, attempt - 1) * 1000;
+            try { await Task.Delay(delayMs, cancellationToken); } catch { return; }
+
+            if (cancellationToken.IsCancellationRequested || _intentionalDisconnect) return;
+
+            try
+            {
+                // 重建所有组件
+                var room = _lastRoom;
+                var q = room.Quality ?? VoiceQuality.Standard;
+
+                _audioCapture = new AudioCapture
+                {
+                    SampleRate = q.SampleRate,
+                    Channels = q.Channels,
+                    FrameSizeMs = q.FrameSizeMs
+                };
+                _audioCapture.Initialize();
+                _audioCapture.OnFrameReady += OnAudioFrameReady;
+
+                _audioPlayer = new AudioPlayer
+                {
+                    SampleRate = q.SampleRate,
+                    Channels = q.Channels
+                };
+                _audioPlayer.Initialize();
+
+                _codec = new OpusCodec(q.SampleRate, q.Channels, q.Bitrate);
+
+                _voiceSender = new VoiceSender();
+                _voiceReceiver = new VoiceReceiver(0);
+                var voicePort = _voiceReceiver.LocalPort;
+
+                _voiceReceiver.OnVoiceReceived += HandleVoiceReceived;
+                _voiceReceiver.OnPacketsLost += HandlePacketsLost;
+                _voiceReceiver.Start();
+
+                _signalingClient = new SignalingClient();
+                _signalingClient.OnConnected += HandleConnected;
+                _signalingClient.OnDisconnected += HandleDisconnected;
+                _signalingClient.OnMemberJoined += HandleMemberJoined;
+                _signalingClient.OnMemberLeft += HandleMemberLeft;
+                _signalingClient.OnMemberMuteChanged += HandleMemberMuteChanged;
+                _signalingClient.OnRoomDissolved += HandleRoomDissolved;
+                _signalingClient.OnError += HandleError;
+
+                var success = await _signalingClient.ConnectAsync(
+                    room.HostAddress, room.SignalingPort, _lastUserName ?? "", voicePort, cancellationToken);
+
+                if (success)
+                {
+                    MemberId = _signalingClient?.MemberId;
+                    if (MemberId != null && _voiceSender != null)
+                        _voiceSender.UserId = MemberId;
+
+                    if (_signalingClient.HostMember?.VoiceEndPoint != null)
+                    {
+                        _voiceSender.AddEndpoint(_signalingClient.HostMember.Id, _signalingClient.HostMember.VoiceEndPoint);
+                    }
+
+                    foreach (var member in _signalingClient.Members)
+                    {
+                        if (member.VoiceEndPoint != null)
+                            _voiceSender.AddEndpoint(member.Id, member.VoiceEndPoint);
+                    }
+
+                    _audioCapture.Start();
+                    _audioPlayer.Start();
+                    _sendCts = new CancellationTokenSource();
+                    _sendTask = Task.Run(() => SendAudioLoopAsync(_sendCts.Token));
+                    StartHeartbeat();
+
+                    CurrentRoom = room;
+                    OnReconnected?.Invoke();
+                    return;
+                }
+
+                // 连接失败，清理资源
+                CleanupAfterFailedReconnect();
+            }
+            catch
+            {
+                CleanupAfterFailedReconnect();
+            }
+        }
+
+        // 重连失败
+        OnError?.Invoke($"重连失败：已尝试 {MaxReconnectAttempts} 次");
+    }
+
+    private void CleanupAfterFailedReconnect()
+    {
+        try { _signalingClient?.Dispose(); } catch { }
+        try { _voiceReceiver?.Stop(); } catch { }
+        try { _voiceReceiver?.Dispose(); } catch { }
+        try { _voiceSender?.Dispose(); } catch { }
+        try { _audioPlayer?.Dispose(); } catch { }
+        try { _audioCapture?.Dispose(); } catch { }
+        try { _codec?.Dispose(); } catch { }
+
+        _signalingClient = null;
+        _voiceReceiver = null;
+        _voiceSender = null;
+        _audioPlayer = null;
+        _audioCapture = null;
+        _codec = null;
     }
 
     private void HandleRoomDissolved()
@@ -521,6 +672,12 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
     public void Dispose()
     {
         // 同步释放：按正确顺序停止所有组件
+
+        // 0. 停止重连
+        _intentionalDisconnect = true;
+        _reconnectCts?.Cancel();
+        _reconnectCts?.Dispose();
+        _reconnectCts = null;
 
         // 1. 取消心跳和发送队列
         if (_heartbeatCts != null)

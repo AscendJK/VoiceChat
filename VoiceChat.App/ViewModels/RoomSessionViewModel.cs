@@ -255,6 +255,18 @@ public partial class RoomSessionViewModel : ObservableObject, IDisposable
             _roomClient.OnInputVolumeChanged += _clientOnInputVolumeChanged;
             _roomClient.OnRoomDissolved += _clientOnRoomDissolved;
             _roomClient.OnError += _clientOnError;
+            _roomClient.OnReconnecting += (attempt, max) => SafePostToDispatcher(() =>
+            {
+                ConnectionStatus = $"正在重连 ({attempt}/{max})...";
+            });
+            _roomClient.OnReconnected += () => SafePostToDispatcher(() =>
+            {
+                IsConnected = true;
+                ConnectionStatus = $"已重连";
+                ConnectionStateChanged?.Invoke();
+                AudioContextChanged?.Invoke(null, _roomClient);
+                SeedMembersFromClient();
+            });
 
             var success = await _roomClient.ConnectAsync(room, userName, password);
             if (!success)

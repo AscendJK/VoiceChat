@@ -18,10 +18,12 @@ public partial class MainViewModel : ObservableObject
 {
     public AudioSettingsViewModel AudioSettings { get; } = new();
     public RoomSessionViewModel RoomSession { get; } = new();
+    public NetworkStatsViewModel NetworkStats { get; } = new();
 
     private RoomHost? _roomHost;
     private RoomClient? _roomClient;
     private UdpBroadcasterScanner? _scanner;
+    private DispatcherTimer? _statsTimer;
     /// <summary>
     /// 异步初始化任务（设备枚举等），供启动时等待
     /// </summary>
@@ -85,6 +87,9 @@ public partial class MainViewModel : ObservableObject
                 AudioSettings.PushToTalkPressed += OnPushToTalkPressed;
                 AudioSettings.PushToTalkReleased += OnPushToTalkReleased;
             }
+
+            // 更新网络统计
+            StartStatsTimer();
         };
         RoomSession.AudioContextChanged += _audioContextChangedHandler;
 
@@ -210,10 +215,42 @@ public partial class MainViewModel : ObservableObject
         });
     }
 
+    private void StartStatsTimer()
+    {
+        _statsTimer?.Stop();
+        if (_roomHost == null && _roomClient == null)
+        {
+            NetworkStats.Reset();
+            NetworkStats.IsStatsVisible = false;
+            return;
+        }
+
+        NetworkStats.IsStatsVisible = true;
+        _statsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _statsTimer.Tick += (_, _) =>
+        {
+            if (_roomHost != null)
+            {
+                var sender = _roomHost.GetAudioCapture();
+                // 从 VoiceSender 获取统计（如果有的话）
+                // 目前简化处理，只显示基本状态
+                NetworkStats.UpdateStats(0, 0, 0, 0, 0);
+            }
+            else if (_roomClient != null)
+            {
+                NetworkStats.UpdateStats(0, 0, 0, 0, 0);
+            }
+        };
+        _statsTimer.Start();
+    }
+
     private void UnsubscribeEvents()
     {
         AudioSettings.PushToTalkPressed -= OnPushToTalkPressed;
         AudioSettings.PushToTalkReleased -= OnPushToTalkReleased;
+        _statsTimer?.Stop();
+        _statsTimer = null;
+        NetworkStats.IsStatsVisible = false;
         if (_connectionStateChangedHandler != null)
             RoomSession.ConnectionStateChanged -= _connectionStateChangedHandler;
         if (_audioContextChangedHandler != null)
