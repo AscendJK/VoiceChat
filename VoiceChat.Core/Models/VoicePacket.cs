@@ -24,7 +24,7 @@ public class VoicePacket
             userIdBytes = System.Text.Encoding.UTF8.GetBytes(UserId!.Substring(0, 32));
         }
 
-        int estimatedSize = 21 + userIdBytes.Length + AudioDataLength;
+        int estimatedSize = 19 + userIdBytes.Length + AudioDataLength;
         var buffer = new byte[estimatedSize];
 
         int offset = 0;
@@ -57,13 +57,6 @@ public class VoicePacket
             offset += AudioDataLength;
         }
 
-        // 返回实际大小的数组
-        if (offset < buffer.Length)
-        {
-            var result = new byte[offset];
-            System.Array.Copy(buffer, result, offset);
-            return result;
-        }
         return buffer;
     }
 /// <summary>

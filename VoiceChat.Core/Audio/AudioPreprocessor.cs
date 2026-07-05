@@ -30,9 +30,6 @@ public class AudioPreprocessor
     // VAD 静音阈值
     private const float VadThreshold = 0.008f;
 
-    // 防止并发回调导致状态损坏
-    private readonly object _processLock = new();
-
     /// <summary>
     /// 检测是否为静音（short[] 版本）
     /// </summary>
@@ -54,67 +51,65 @@ public class AudioPreprocessor
     /// <summary>
     /// 处理音频帧（单次遍历：RMS + 噪声门 + AGC 合并）
     /// 返回计算得到的 RMS 值，供调用方复用
+    /// 注意：此方法仅从 AudioCapture.DataAvailable 回调（单线程）调用，无需加锁
     /// </summary>
     public float Process(float[] buffer, int count)
     {
         if (count == 0) return 0f;
 
-        lock (_processLock)
+        // 单次遍历：计算 RMS + 应用噪声门 + 应用 AGC
+        float sum = 0f;
+        for (int i = 0; i < count; i++)
         {
-            // 单次遍历：计算 RMS + 应用噪声门 + 应用 AGC
-            float sum = 0f;
-            for (int i = 0; i < count; i++)
-            {
-                sum += buffer[i] * buffer[i];
-            }
-            float rms = MathF.Sqrt(sum / count);
-
-            // 噪声估计 (使用最小值跟踪)
-            if (rms < _noiseEstimate || _noiseEstimate == 0)
-            {
-                _noiseEstimate = rms;
-            }
-            else
-            {
-                _noiseEstimate = _noiseAlpha * _noiseEstimate + (1 - _noiseAlpha) * rms;
-            }
-
-            // 计算噪声门系数
-            float noiseGateCoeff = 1.0f;
-            if (NoiseGateEnabled)
-            {
-                bool isNoise = rms < NoiseGateThreshold || rms < _noiseEstimate * 1.5f;
-                if (isNoise)
-                {
-                    noiseGateCoeff = 0.3f; // 噪声段衰减到30%
-                }
-            }
-
-            // 计算 AGC 增益
-            float targetGain = _targetRms / MathF.Max(rms, 0.001f);
-            targetGain = Math.Clamp(targetGain, 0.5f, 4.0f);
-
-            // 平滑增益变化
-            if (targetGain < _currentGain)
-            {
-                _currentGain = _agcAttack * _currentGain + (1 - _agcAttack) * targetGain;
-            }
-            else
-            {
-                _currentGain = _agcRelease * _currentGain + (1 - _agcRelease) * targetGain;
-            }
-
-            // 单次遍历：应用噪声门 + AGC + 限幅
-            float totalGain = _currentGain * noiseGateCoeff;
-            for (int i = 0; i < count; i++)
-            {
-                float sample = buffer[i] * totalGain;
-                // 限幅，防止削波
-                buffer[i] = sample > 1.0f ? 1.0f : (sample < -1.0f ? -1.0f : sample);
-            }
-
-            return rms;
+            sum += buffer[i] * buffer[i];
         }
+        float rms = MathF.Sqrt(sum / count);
+
+        // 噪声估计 (使用最小值跟踪)
+        if (rms < _noiseEstimate || _noiseEstimate == 0)
+        {
+            _noiseEstimate = rms;
+        }
+        else
+        {
+            _noiseEstimate = _noiseAlpha * _noiseEstimate + (1 - _noiseAlpha) * rms;
+        }
+
+        // 计算噪声门系数
+        float noiseGateCoeff = 1.0f;
+        if (NoiseGateEnabled)
+        {
+            bool isNoise = rms < NoiseGateThreshold || rms < _noiseEstimate * 1.5f;
+            if (isNoise)
+            {
+                noiseGateCoeff = 0.3f; // 噪声段衰减到30%
+            }
+        }
+
+        // 计算 AGC 增益
+        float targetGain = _targetRms / MathF.Max(rms, 0.001f);
+        targetGain = Math.Clamp(targetGain, 0.5f, 4.0f);
+
+        // 平滑增益变化
+        if (targetGain < _currentGain)
+        {
+            _currentGain = _agcAttack * _currentGain + (1 - _agcAttack) * targetGain;
+        }
+        else
+        {
+            _currentGain = _agcRelease * _currentGain + (1 - _agcRelease) * targetGain;
+        }
+
+        // 单次遍历：应用噪声门 + AGC + 限幅
+        float totalGain = _currentGain * noiseGateCoeff;
+        for (int i = 0; i < count; i++)
+        {
+            float sample = buffer[i] * totalGain;
+            // 限幅，防止削波
+            buffer[i] = sample > 1.0f ? 1.0f : (sample < -1.0f ? -1.0f : sample);
+        }
+
+        return rms;
     }
 
     /// <summary>

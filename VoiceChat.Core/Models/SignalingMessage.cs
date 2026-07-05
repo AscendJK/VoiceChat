@@ -66,8 +66,10 @@ public class SignalingMessage
     {
         var json = JsonSerializer.Serialize(this);
         var bytes = System.Text.Encoding.UTF8.GetBytes(json);
-        var length = BitConverter.GetBytes(bytes.Length);
-        return length.Concat(bytes).ToArray();
+        var result = new byte[4 + bytes.Length];
+        Buffer.BlockCopy(BitConverter.GetBytes(bytes.Length), 0, result, 0, 4);
+        Buffer.BlockCopy(bytes, 0, result, 4, bytes.Length);
+        return result;
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using NAudio.CoreAudioApi;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Net;
 using VoiceChat.Core.Audio;
@@ -414,13 +415,14 @@ public class RoomHost : IRoomHost, IDisposable, IAsyncDisposable
         if (AudioPreprocessor.IsSilent(frame, count))
             return;
 
-        var buffer = new short[count];
+        var buffer = ArrayPool<short>.Shared.Rent(count);
         Buffer.BlockCopy(frame, 0, buffer, 0, count * 2);
 
         // 队列满时丢弃最旧帧，防止无限积压
         while (_audioQueue.Count >= MaxAudioQueueSize)
         {
-            _audioQueue.TryDequeue(out _);
+            if (_audioQueue.TryDequeue(out var dropped))
+                ArrayPool<short>.Shared.Return(dropped);
         }
         _audioQueue.Enqueue(buffer);
         try { _audioSignal.Release(); } catch { }
@@ -446,21 +448,36 @@ public class RoomHost : IRoomHost, IDisposable, IAsyncDisposable
                 // 尝试获取2帧进行合并发送
                 if (_audioQueue.TryDequeue(out var frame1))
                 {
-                    int encodedLength1 = _codec.Encode(frame1, frame1.Length, _encodeBuf1);
-
-                    if (encodedLength1 > 0)
+                    try
                     {
-                        // 尝试获取第二帧
-                        if (_audioQueue.TryDequeue(out var frame2))
-                        {
-                            int encodedLength2 = _codec.Encode(frame2, frame2.Length, _encodeBuf2);
+                        int encodedLength1 = _codec.Encode(frame1, frame1.Length, _encodeBuf1);
 
-                            if (encodedLength2 > 0)
+                        if (encodedLength1 > 0)
+                        {
+                            // 尝试获取第二帧
+                            if (_audioQueue.TryDequeue(out var frame2))
                             {
-                                // 合并发送
-                                _voiceSender.SendCombinedVoice(_encodeBuf1, encodedLength1, _encodeBuf2, encodedLength2);
-                                Interlocked.Add(ref _totalSamplesSent, frame1.Length + frame2.Length);
-                                Interlocked.Add(ref _totalFramesSent, 2);
+                                try
+                                {
+                                    int encodedLength2 = _codec.Encode(frame2, frame2.Length, _encodeBuf2);
+
+                                    if (encodedLength2 > 0)
+                                    {
+                                        _voiceSender.SendCombinedVoice(_encodeBuf1, encodedLength1, _encodeBuf2, encodedLength2);
+                                        Interlocked.Add(ref _totalSamplesSent, frame1.Length + frame2.Length);
+                                        Interlocked.Add(ref _totalFramesSent, 2);
+                                    }
+                                    else
+                                    {
+                                        _voiceSender.SendVoice(_encodeBuf1, encodedLength1);
+                                        Interlocked.Add(ref _totalSamplesSent, frame1.Length);
+                                        Interlocked.Increment(ref _totalFramesSent);
+                                    }
+                                }
+                                finally
+                                {
+                                    ArrayPool<short>.Shared.Return(frame2);
+                                }
                             }
                             else
                             {
@@ -469,13 +486,10 @@ public class RoomHost : IRoomHost, IDisposable, IAsyncDisposable
                                 Interlocked.Increment(ref _totalFramesSent);
                             }
                         }
-                        else
-                        {
-                            // 只有一帧，正常发送
-                            _voiceSender.SendVoice(_encodeBuf1, encodedLength1);
-                            Interlocked.Add(ref _totalSamplesSent, frame1.Length);
-                            Interlocked.Increment(ref _totalFramesSent);
-                        }
+                    }
+                    finally
+                    {
+                        ArrayPool<short>.Shared.Return(frame1);
                     }
                 }
                 else

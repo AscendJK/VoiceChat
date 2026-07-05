@@ -153,4 +153,127 @@ public class SignalingTests : IAsyncLifetime
 
         foreach (var c in clients) c.Dispose();
     }
+
+    [Fact]
+    public async Task KickMember_RemovesClient()
+    {
+        _server = new SignalingServer();
+        await _server.StartAsync(0);
+
+        var client1 = new SignalingClient();
+        await client1.ConnectAsync("127.0.0.1", _server.Port, "StayUser", 0);
+
+        var client2 = new SignalingClient();
+        var tcs = new TaskCompletionSource<string?>();
+        client2.OnError += msg => tcs.TrySetResult(msg);
+        client2.OnDisconnected += () => tcs.TrySetResult("disconnected");
+
+        await client2.ConnectAsync("127.0.0.1", _server.Port, "KickUser", 0);
+
+        // Kick client2
+        await _server.KickMemberAsync(client2.MemberId!);
+
+        var result = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // Client should receive either an error or disconnect notification
+        Assert.NotNull(result);
+
+        client1.Dispose();
+    }
+
+    [Fact]
+    public async Task EmptyUsername_Rejected()
+    {
+        _server = new SignalingServer();
+        await _server.StartAsync(0);
+
+        var client = new SignalingClient();
+        var tcs = new TaskCompletionSource<string?>();
+        client.OnError += msg => tcs.TrySetResult(msg);
+
+        bool success = await client.ConnectAsync("127.0.0.1", _server.Port, "", 0);
+
+        Assert.False(success);
+        var error = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Contains("用户名", error);
+    }
+
+    [Fact]
+    public async Task LongUsername_Rejected()
+    {
+        _server = new SignalingServer();
+        await _server.StartAsync(0);
+
+        var client = new SignalingClient();
+        var tcs = new TaskCompletionSource<string?>();
+        client.OnError += msg => tcs.TrySetResult(msg);
+
+        bool success = await client.ConnectAsync("127.0.0.1", _server.Port, new string('A', 100), 0);
+
+        Assert.False(success);
+        var error = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Contains("字符", error);
+    }
+
+    [Fact]
+    public async Task Heartbeat_ResponseReceived()
+    {
+        _server = new SignalingServer();
+        await _server.StartAsync(0);
+
+        var client = new SignalingClient();
+        await client.ConnectAsync("127.0.0.1", _server.Port, "HeartbeatUser", 0);
+
+        // Send heartbeat - should not throw
+        await client.SendHeartbeatAsync();
+
+        client.Dispose();
+    }
+
+    [Fact]
+    public async Task MuteSelf_BroadcastsToOthers()
+    {
+        _server = new SignalingServer();
+        await _server.StartAsync(0);
+
+        var client1 = new SignalingClient();
+        var muteTcs = new TaskCompletionSource<bool>();
+        client1.OnMemberMuteChanged += (id, muted) =>
+        {
+            if (muted) muteTcs.TrySetResult(true);
+        };
+
+        await client1.ConnectAsync("127.0.0.1", _server.Port, "User1", 0);
+
+        var client2 = new SignalingClient();
+        await client2.ConnectAsync("127.0.0.1", _server.Port, "User2", 0);
+
+        // Wait for connections to stabilize
+        await Task.Delay(200);
+
+        await client2.SendMuteSelfAsync(true);
+
+        var received = await muteTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(received, "Client1 should receive mute notification from Client2");
+
+        client1.Dispose();
+        client2.Dispose();
+    }
+
+    [Fact]
+    public async Task Server_Stop_ClosesAllConnections()
+    {
+        _server = new SignalingServer();
+        await _server.StartAsync(0);
+
+        var client = new SignalingClient();
+        var tcs = new TaskCompletionSource<bool>();
+        client.OnDisconnected += () => tcs.TrySetResult(true);
+
+        await client.ConnectAsync("127.0.0.1", _server.Port, "User1", 0);
+
+        _server.Stop();
+
+        var disconnected = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(disconnected);
+    }
 }

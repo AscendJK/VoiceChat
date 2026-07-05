@@ -79,16 +79,14 @@ public class UdpBroadcasterScanner : IDisposable
             try
             {
                 var result = await _udpClient!.ReceiveAsync();
-                var json = Encoding.UTF8.GetString(result.Buffer);
 
-                // 先解析 JSON 再判断类型，避免字符串包含误匹配
                 try
                 {
-                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    using var doc = System.Text.Json.JsonDocument.Parse(result.Buffer);
                     if (doc.RootElement.TryGetProperty("Type", out var typeProp) &&
                         typeProp.GetString() == "RoomAnnounce")
                     {
-                        ProcessResponse(json, result.RemoteEndPoint);
+                        ProcessResponse(doc.RootElement, result.RemoteEndPoint);
                     }
                 }
                 catch { }
@@ -143,45 +141,39 @@ public class UdpBroadcasterScanner : IDisposable
         }
     }
 
-    private void ProcessResponse(string json, IPEndPoint remoteEndPoint)
+    private void ProcessResponse(JsonElement root, IPEndPoint remoteEndPoint)
     {
         try
         {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("Type", out var type) && type.GetString() == "RoomAnnounce")
+            // 解析音质码率（旧版房主协议可能不包含此字段，默认 Standard）
+            int qualityBitrate = 64000;
+            if (root.TryGetProperty("Quality", out var qualityProp))
             {
-                // 解析音质码率（旧版房主协议可能不包含此字段，默认 Standard）
-                int qualityBitrate = 64000;
-                if (root.TryGetProperty("Quality", out var qualityProp))
-                {
-                    qualityBitrate = qualityProp.GetInt32();
-                }
-
-                var roomInfo = new RoomInfo
-                {
-                    Id = root.GetProperty("RoomId").GetString() ?? "",
-                    Name = root.GetProperty("RoomName").GetString() ?? "",
-                    HostName = root.GetProperty("HostName").GetString() ?? "",
-                    HostAddress = remoteEndPoint.Address.ToString(),
-                    SignalingPort = root.GetProperty("SignalingPort").GetInt32(),
-                    VoicePort = root.GetProperty("VoicePort").GetInt32(),
-                    MemberCount = root.GetProperty("MemberCount").GetInt32(),
-                    MaxMembers = root.GetProperty("MaxMembers").GetInt32(),
-                    HasPassword = root.GetProperty("HasPassword").GetBoolean(),
-                    Quality = BitrateToQuality(qualityBitrate),
-                    LastBroadcastTime = DateTime.UtcNow
-                };
-
-                var isNew = !DiscoveredRooms.ContainsKey(roomInfo.Id);
-                DiscoveredRooms[roomInfo.Id] = roomInfo;
-
-                if (isNew)
-                    OnRoomDiscovered?.Invoke(roomInfo);
-                else
-                    OnRoomUpdated?.Invoke(roomInfo);
+                qualityBitrate = qualityProp.GetInt32();
             }
+
+            var roomInfo = new RoomInfo
+            {
+                Id = root.GetProperty("RoomId").GetString() ?? "",
+                Name = root.GetProperty("RoomName").GetString() ?? "",
+                HostName = root.GetProperty("HostName").GetString() ?? "",
+                HostAddress = remoteEndPoint.Address.ToString(),
+                SignalingPort = root.GetProperty("SignalingPort").GetInt32(),
+                VoicePort = root.GetProperty("VoicePort").GetInt32(),
+                MemberCount = root.GetProperty("MemberCount").GetInt32(),
+                MaxMembers = root.GetProperty("MaxMembers").GetInt32(),
+                HasPassword = root.GetProperty("HasPassword").GetBoolean(),
+                Quality = BitrateToQuality(qualityBitrate),
+                LastBroadcastTime = DateTime.UtcNow
+            };
+
+            var isNew = !DiscoveredRooms.ContainsKey(roomInfo.Id);
+            DiscoveredRooms[roomInfo.Id] = roomInfo;
+
+            if (isNew)
+                OnRoomDiscovered?.Invoke(roomInfo);
+            else
+                OnRoomUpdated?.Invoke(roomInfo);
         }
         catch { }
     }

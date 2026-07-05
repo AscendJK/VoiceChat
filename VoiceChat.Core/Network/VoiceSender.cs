@@ -140,12 +140,13 @@ public class VoiceSender : IVoiceSender, IDisposable
     // 端点连续失败次数跟踪（超过阈值后自动移除）
     private readonly ConcurrentDictionary<string, int> _endpointFailures = new();
     private const int MaxEndpointFailuresBeforeRemove = 50;
+    private readonly List<string> _removeBuffer = new();
 
     private void SendRaw(byte[] data, int length)
     {
         if (_endpoints.IsEmpty) return;
 
-        var toRemove = new List<string>();
+        _removeBuffer.Clear();
 
         foreach (var kvp in _endpoints)
         {
@@ -161,13 +162,13 @@ public class VoiceSender : IVoiceSender, IDisposable
             {
                 // ICMP 端口不可达：立即隔离该端点，防止影响其他端点
                 Interlocked.Increment(ref Stats._failedPackets);
-                toRemove.Add(kvp.Key);
+                _removeBuffer.Add(kvp.Key);
             }
             catch (System.Net.Sockets.SocketException ex) when (ex.SocketErrorCode == System.Net.Sockets.SocketError.HostUnreachable || ex.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable)
             {
                 // 网络不可达：立即隔离
                 Interlocked.Increment(ref Stats._failedPackets);
-                toRemove.Add(kvp.Key);
+                _removeBuffer.Add(kvp.Key);
             }
             catch
             {
@@ -176,13 +177,13 @@ public class VoiceSender : IVoiceSender, IDisposable
                 int failures = IncrementFailures(kvp.Key);
                 if (failures >= MaxEndpointFailuresBeforeRemove)
                 {
-                    toRemove.Add(kvp.Key);
+                    _removeBuffer.Add(kvp.Key);
                 }
             }
         }
 
         // 移除连续失败的端点
-        foreach (var key in toRemove)
+        foreach (var key in _removeBuffer)
         {
             _endpoints.TryRemove(key, out _);
             _endpointFailures.TryRemove(key, out _);

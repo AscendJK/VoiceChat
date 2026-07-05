@@ -542,7 +542,7 @@ public class SignalingServer : ISignalingServer, IDisposable
                 Data = connection.Id
             });
         }
-        }
+    }
 
     private async Task HandleMuteSelf(ClientConnection connection, bool isMuted)
     {

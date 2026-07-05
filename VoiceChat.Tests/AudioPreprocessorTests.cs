@@ -117,4 +117,90 @@ public class AudioPreprocessorTests
         // After reset, state should be clean - no crash on next use
         preprocessor.Process(signal, signal.Length);
     }
+
+    [Fact]
+    public void NoiseGate_BelowThreshold_Attenuates()
+    {
+        var preprocessor = new AudioPreprocessor
+        {
+            NoiseGateEnabled = true,
+            NoiseGateThreshold = 0.01f
+        };
+        // Very quiet signal below threshold
+        float[] quiet = new float[960];
+        for (int i = 0; i < quiet.Length; i++) quiet[i] = 0.001f;
+
+        float rmsBefore = quiet.Sum(x => x * x) / quiet.Length;
+        preprocessor.Process(quiet, quiet.Length);
+        float rmsAfter = quiet.Sum(x => x * x) / quiet.Length;
+
+        // Noise gate should attenuate
+        Assert.True(rmsAfter < rmsBefore || rmsAfter == 0f,
+            $"Noise gate should attenuate quiet signal: before={rmsBefore}, after={rmsAfter}");
+    }
+
+    [Fact]
+    public void NoiseGate_Disabled_PassesThrough()
+    {
+        var preprocessor = new AudioPreprocessor
+        {
+            NoiseGateEnabled = false
+        };
+        float[] signal = new float[960];
+        for (int i = 0; i < signal.Length; i++) signal[i] = 0.005f;
+
+        float[] original = (float[])signal.Clone();
+        preprocessor.Process(signal, signal.Length);
+
+        // Without noise gate, signal should not be heavily attenuated
+        float maxOriginal = original.Max(MathF.Abs);
+        float maxProcessed = signal.Max(MathF.Abs);
+        Assert.True(maxProcessed >= maxOriginal * 0.5f,
+            "Noise gate disabled should not heavily attenuate signal");
+    }
+
+    [Fact]
+    public void AGC_Gain_Clamped()
+    {
+        var preprocessor = new AudioPreprocessor { NoiseGateEnabled = false };
+
+        // Process very quiet signal to trigger high gain
+        float[] quiet = new float[960];
+        for (int i = 0; i < quiet.Length; i++) quiet[i] = 0.001f;
+
+        preprocessor.Process(quiet, quiet.Length);
+
+        // Output should not exceed [-1, 1] due to clamping
+        for (int i = 0; i < quiet.Length; i++)
+        {
+            Assert.True(quiet[i] >= -1.0f && quiet[i] <= 1.0f,
+                $"Output sample {quiet[i]} out of range [-1, 1]");
+        }
+    }
+
+    [Fact]
+    public void Process_EmptyCount_ReturnsZero()
+    {
+        var preprocessor = new AudioPreprocessor();
+        float result = preprocessor.Process(new float[10], 0);
+        Assert.Equal(0f, result);
+    }
+
+    [Fact]
+    public void IsSilent_EmptyCount_ReturnsTrue()
+    {
+        Assert.True(AudioPreprocessor.IsSilent(new short[10], 0));
+    }
+
+    [Fact]
+    public void Process_ReturnsRms()
+    {
+        var preprocessor = new AudioPreprocessor { NoiseGateEnabled = false };
+        float[] signal = new float[960];
+        for (int i = 0; i < signal.Length; i++) signal[i] = 0.5f;
+
+        float rms = preprocessor.Process(signal, signal.Length);
+
+        Assert.True(rms > 0f, "RMS should be positive for non-silent input");
+    }
 }

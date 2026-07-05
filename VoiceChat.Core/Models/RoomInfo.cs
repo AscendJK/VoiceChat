@@ -75,7 +75,6 @@ public class RoomInfo
     public override string ToString() => $"{Name} ({HostName}) - {MemberCount}人在线";
 
     /// <summary>
-    /// <summary>
     /// 原地更新属性（保持对象引用不变，避免UI绑定丢失）
     /// </summary>
     public void UpdateFrom(RoomInfo other)

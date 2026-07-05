@@ -1,4 +1,5 @@
 using NAudio.CoreAudioApi;
+using System.Buffers;
 using System.Net;
 using VoiceChat.Core.Audio;
 using VoiceChat.Core.Models;
@@ -349,17 +350,21 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
         Interlocked.Increment(ref _captureCount);
 
         // 复制frame并将编码/发送交给后台线程，避免阻塞音频采集
-        var buffer = new short[count];
+        var buffer = ArrayPool<short>.Shared.Rent(count);
         Buffer.BlockCopy(frame, 0, buffer, 0, count * 2);
 
         // VAD：静音不发送，节省带宽
         if (AudioPreprocessor.IsSilent(buffer, count))
+        {
+            ArrayPool<short>.Shared.Return(buffer);
             return;
+        }
 
         // 队列满时丢弃最旧帧，防止内存无限增长
         if (_audioQueue.Count >= MaxAudioQueueSize)
         {
-            _audioQueue.TryDequeue(out _);
+            if (_audioQueue.TryDequeue(out var dropped))
+                ArrayPool<short>.Shared.Return(dropped);
         }
         _audioQueue.Enqueue(buffer);
         try { _audioSignal.Release(); } catch { }
@@ -376,17 +381,24 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
             {
                 if (_audioQueue.TryDequeue(out var buffer))
                 {
-                    if (_codec != null)
+                    try
                     {
-                        // 确保缓冲区已分配
-                        encoded ??= new byte[_codec.MaxPacketSize];
-                        int encodedLength = _codec.Encode(buffer, buffer.Length, encoded);
-
-                        if (encodedLength > 0)
+                        if (_codec != null)
                         {
-                            _voiceSender?.SendVoice(encoded, encodedLength);
-                            Interlocked.Increment(ref _sendCount);
+                            // 确保缓冲区已分配
+                            encoded ??= new byte[_codec.MaxPacketSize];
+                            int encodedLength = _codec.Encode(buffer, buffer.Length, encoded);
+
+                            if (encodedLength > 0)
+                            {
+                                _voiceSender?.SendVoice(encoded, encodedLength);
+                                Interlocked.Increment(ref _sendCount);
+                            }
                         }
+                    }
+                    finally
+                    {
+                        ArrayPool<short>.Shared.Return(buffer);
                     }
                 }
                 else
@@ -541,7 +553,6 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
         _audioCapture?.Dispose();
         _audioPlayer?.Dispose();
         _codec?.Dispose();
-        GC.SuppressFinalize(this);
         GC.SuppressFinalize(this);
     }
 
