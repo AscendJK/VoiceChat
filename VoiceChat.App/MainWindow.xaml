@@ -110,7 +110,8 @@
                                     <TextBlock x:Name="ContentSite" IsHitTestVisible="False" 
                                                Text="{TemplateBinding SelectionBoxItem}"
                                                Foreground="{TemplateBinding Foreground}"
-                                               Margin="6,3" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                               Margin="6,3,28,3" VerticalAlignment="Center" HorizontalAlignment="Left"
+                                               TextTrimming="CharacterEllipsis"/>
                                     <Path x:Name="Arrow" Data="M 0 0 L 5 5 L 10 0" Stroke="{DynamicResource PrimaryText}" StrokeThickness="1.5"
                                           HorizontalAlignment="Right" Margin="0,0,10,0" VerticalAlignment="Center"/>
                                 </Grid>
