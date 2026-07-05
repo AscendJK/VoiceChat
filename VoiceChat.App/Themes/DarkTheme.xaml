@@ -68,6 +68,44 @@
                 </Style>
             </Setter.Value>
         </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <ToggleButton x:Name="ToggleButton" 
+                                      Background="{TemplateBinding Background}" 
+                                      BorderBrush="{TemplateBinding BorderBrush}" 
+                                      BorderThickness="{TemplateBinding BorderThickness}"
+                                      Focusable="False" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                      ClickMode="Press">
+                            <Grid>
+                                <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False" 
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  Margin="6,3" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="PlaceholderText" 
+                                           Text="{TemplateBinding Tag}" 
+                                           Foreground="#808080" Margin="6,3" VerticalAlignment="Center"
+                                           Visibility="Collapsed"/>
+                                <Path x:Name="Arrow" Data="M 0 0 L 5 5 L 10 0" Stroke="#E0E0E0" StrokeThickness="1.5"
+                                      HorizontalAlignment="Right" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            </Grid>
+                        </ToggleButton>
+                        <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" 
+                               AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                            <Grid x:Name="DropDown" MaxHeight="{TemplateBinding MaxDropDownHeight}" 
+                                  MinWidth="{TemplateBinding ActualWidth}" Background="#16213E">
+                                <Border BorderBrush="#3A3A5A" BorderThickness="1" CornerRadius="0,0,4,4">
+                                    <ScrollViewer Margin="2" VerticalScrollBarVisibility="Auto">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Grid>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- ListBox 下拉项样式 -->
