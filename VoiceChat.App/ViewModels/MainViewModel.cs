@@ -196,10 +196,10 @@ public partial class MainViewModel : ObservableObject
                 var recv = _roomHost.GetReceiveStats();
                 if (send != null && recv != null)
                 {
-                    // 计算延迟：最后接收时间与当前时间的差值，上限 999ms
+                    // 计算延迟：最后接收时间与当前时间的差值，超过5秒视为无数据
                     long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                     long lastRecv = _roomHost.LastReceiveTimestamp;
-                    int latency = lastRecv > 0 ? Math.Min((int)(now - lastRecv), 999) : 0;
+                    int latency = (lastRecv > 0 && (now - lastRecv) < 5000) ? (int)(now - lastRecv) : -1;
 
                     NetworkStats.UpdateStats(
                         send.SentBytes, recv.ReceivedBytes,
@@ -215,7 +215,7 @@ public partial class MainViewModel : ObservableObject
                 {
                     long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                     long lastRecv = _roomClient.LastReceiveTimestamp;
-                    int latency = lastRecv > 0 ? Math.Min((int)(now - lastRecv), 999) : 0;
+                    int latency = (lastRecv > 0 && (now - lastRecv) < 5000) ? (int)(now - lastRecv) : -1;
 
                     NetworkStats.UpdateStats(
                         send.SentBytes, recv.ReceivedBytes,

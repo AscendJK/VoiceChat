@@ -8,7 +8,7 @@ public class NetworkStatsViewModelTests
     public void DefaultValues_AreZero()
     {
         var vm = new NetworkStatsViewModel();
-        Assert.Equal(0, vm.Latency);
+        Assert.Equal("—", vm.LatencyText);
         Assert.Equal(0, vm.PacketLossRate);
         Assert.Equal(0, vm.SentBytesPerSecond);
         Assert.Equal(0, vm.ReceivedBytesPerSecond);
@@ -72,13 +72,12 @@ public class NetworkStatsViewModelTests
     public void Reset_ClearsAll()
     {
         var vm = new NetworkStatsViewModel();
-        vm.UpdateStats(1000, 2000, 10, 1, 99);
-        vm.Latency = 50;
+        vm.UpdateStats(1000, 2000, 10, 1, 99, 50);
         vm.IsStatsVisible = true;
 
         vm.Reset();
 
-        Assert.Equal(0, vm.Latency);
+        Assert.Equal("—", vm.LatencyText);
         Assert.Equal(0, vm.PacketLossRate);
         Assert.Equal(0, vm.SentBytesPerSecond);
         Assert.Equal(0, vm.ReceivedBytesPerSecond);
@@ -120,7 +119,7 @@ public class NetworkStatsViewModelTests
         var changedProps = new List<string>();
         vm.PropertyChanged += (s, e) => changedProps.Add(e.PropertyName!);
 
-        vm.UpdateStats(100, 200, 5, 1, 49);
+        vm.UpdateStats(100, 200, 5, 1, 49, 10);
 
         Assert.Contains(nameof(NetworkStatsViewModel.SentBytesPerSecond), changedProps);
         Assert.Contains(nameof(NetworkStatsViewModel.ReceivedBytesPerSecond), changedProps);
@@ -128,6 +127,7 @@ public class NetworkStatsViewModelTests
         Assert.Contains(nameof(NetworkStatsViewModel.ReceivedPackets), changedProps);
         Assert.Contains(nameof(NetworkStatsViewModel.LostPackets), changedProps);
         Assert.Contains(nameof(NetworkStatsViewModel.PacketLossRate), changedProps);
+        Assert.Contains(nameof(NetworkStatsViewModel.LatencyText), changedProps);
     }
 
     [Fact]

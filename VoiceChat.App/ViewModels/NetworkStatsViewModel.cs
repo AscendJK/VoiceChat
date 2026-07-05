@@ -4,11 +4,11 @@ namespace VoiceChat.App.ViewModels;
 
 public partial class NetworkStatsViewModel : ObservableObject
 {
-    private int _latency;
-    public int Latency
+    private string _latencyText = "—";
+    public string LatencyText
     {
-        get => _latency;
-        set => SetProperty(ref _latency, value);
+        get => _latencyText;
+        set => SetProperty(ref _latencyText, value);
     }
 
     private double _packetLossRate;
@@ -63,7 +63,7 @@ public partial class NetworkStatsViewModel : ObservableObject
     private long _lastSentBytes;
     private long _lastReceivedBytes;
 
-    public void UpdateStats(long totalSentBytes, long totalReceivedBytes, long totalSentPackets, long totalLostPackets, long totalReceivedPackets, int latencyMs = 0)
+    public void UpdateStats(long totalSentBytes, long totalReceivedBytes, long totalSentPackets, long totalLostPackets, long totalReceivedPackets, int latencyMs = -1)
     {
         SentBytesPerSecond = (totalSentBytes - _lastSentBytes);
         ReceivedBytesPerSecond = (totalReceivedBytes - _lastReceivedBytes);
@@ -73,7 +73,7 @@ public partial class NetworkStatsViewModel : ObservableObject
         SentPackets = totalSentPackets;
         ReceivedPackets = totalReceivedPackets;
         LostPackets = totalLostPackets;
-        Latency = latencyMs;
+        LatencyText = latencyMs >= 0 ? $"{latencyMs}" : "—";
 
         long totalExpected = totalReceivedPackets + totalLostPackets;
         PacketLossRate = totalExpected > 0 ? (double)totalLostPackets / totalExpected * 100 : 0;
@@ -81,7 +81,7 @@ public partial class NetworkStatsViewModel : ObservableObject
 
     public void Reset()
     {
-        Latency = 0;
+        LatencyText = "—";
         PacketLossRate = 0;
         SentBytesPerSecond = 0;
         ReceivedBytesPerSecond = 0;
