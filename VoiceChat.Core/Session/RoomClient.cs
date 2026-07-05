@@ -41,6 +41,16 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
     /// </summary>
     public AudioCapture? GetAudioCapture() => _audioCapture;
 
+    /// <summary>
+    /// 获取发送统计
+    /// </summary>
+    public VoiceSendStats? GetSendStats() => _voiceSender?.Stats;
+
+    /// <summary>
+    /// 获取接收统计
+    /// </summary>
+    public VoiceReceiveStats? GetReceiveStats() => _voiceReceiver?.Stats;
+
     public event Action<RoomInfo>? OnConnected;
     public event Action? OnDisconnected;
     public event Action<RoomMember>? OnMemberJoined;

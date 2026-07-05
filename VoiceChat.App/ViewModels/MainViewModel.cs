@@ -192,14 +192,25 @@ public partial class MainViewModel : ObservableObject
         {
             if (_roomHost != null)
             {
-                var sender = _roomHost.GetAudioCapture();
-                // 从 VoiceSender 获取统计（如果有的话）
-                // 目前简化处理，只显示基本状态
-                NetworkStats.UpdateStats(0, 0, 0, 0, 0);
+                var send = _roomHost.GetSendStats();
+                var recv = _roomHost.GetReceiveStats();
+                if (send != null && recv != null)
+                {
+                    NetworkStats.UpdateStats(
+                        send.SentBytes, recv.ReceivedBytes,
+                        send.SentPackets, recv.LostPackets, recv.ReceivedPackets);
+                }
             }
             else if (_roomClient != null)
             {
-                NetworkStats.UpdateStats(0, 0, 0, 0, 0);
+                var send = _roomClient.GetSendStats();
+                var recv = _roomClient.GetReceiveStats();
+                if (send != null && recv != null)
+                {
+                    NetworkStats.UpdateStats(
+                        send.SentBytes, recv.ReceivedBytes,
+                        send.SentPackets, recv.LostPackets, recv.ReceivedPackets);
+                }
             }
         };
         _statsTimer.Start();

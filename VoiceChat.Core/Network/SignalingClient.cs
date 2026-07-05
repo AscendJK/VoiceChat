@@ -261,6 +261,11 @@ public class SignalingClient : ISignalingClient, IDisposable
             case SignalingType.RoomDissolved:
                 OnRoomDissolved?.Invoke();
                 break;
+
+            case SignalingType.Error:
+                // 收到错误消息（如被踢出），触发错误事件
+                OnError?.Invoke(message.Data);
+                break;
         }
     }
 
