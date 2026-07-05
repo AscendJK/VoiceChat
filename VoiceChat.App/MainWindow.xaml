@@ -125,6 +125,22 @@
                         <Slider Value="{Binding AudioSettings.NoiseGateThreshold}" Minimum="0.001" Maximum="0.05" SmallChange="0.001" LargeChange="0.005" TickFrequency="0.001" IsSnapToTickEnabled="True" Width="120" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding AudioSettings.NoiseGateThreshold, StringFormat=F3}" FontSize="12" Foreground="#595959" Width="50" Margin="4,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
+                        <CheckBox IsChecked="{Binding AudioSettings.PushToTalkEnabled}" Content="🗣️ 按键说话" FontSize="13" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="按键：" FontSize="12" Foreground="#595959" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <ComboBox SelectedItem="{Binding AudioSettings.PushToTalkKey}" Width="120" Height="28" VerticalAlignment="Center" IsEnabled="{Binding AudioSettings.PushToTalkEnabled}">
+                            <ComboBoxItem Content="None"/>
+                            <ComboBoxItem Content="LeftCtrl"/>
+                            <ComboBoxItem Content="RightCtrl"/>
+                            <ComboBoxItem Content="LeftShift"/>
+                            <ComboBoxItem Content="RightShift"/>
+                            <ComboBoxItem Content="Space"/>
+                            <ComboBoxItem Content="Z"/>
+                            <ComboBoxItem Content="X"/>
+                            <ComboBoxItem Content="C"/>
+                            <ComboBoxItem Content="V"/>
+                        </ComboBox>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="🔊 扬声器设置" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
@@ -167,7 +183,10 @@
                             <DataTemplate>
                                 <Border Background="#F6F6F6" CornerRadius="8" Padding="14,12" Margin="0,0,0,10" BorderBrush="#E8E8E8" BorderThickness="1">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="16"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="16"/>
+                                            <TextBlock Text=" 🔒" FontSize="14" VerticalAlignment="Center" Visibility="{Binding HasPassword, Converter={local:BoolToVisibilityConverter}}"/>
+                                        </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                             <TextBlock Text="{Binding HostName}" FontSize="14" Foreground="#595959"/>
                                             <TextBlock Text=" • " FontSize="14" Foreground="#BFBFBF"/>

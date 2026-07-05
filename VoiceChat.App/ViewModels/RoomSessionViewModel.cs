@@ -3,6 +3,7 @@ using System.Net;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NAudio.CoreAudioApi;
+using VoiceChat.App.Services;
 using VoiceChat.Core.Audio;
 using VoiceChat.Core.Models;
 using VoiceChat.Core.Network;
@@ -51,11 +52,11 @@ public partial class RoomSessionViewModel : ObservableObject, IDisposable
     }
     public readonly Dictionary<string, RoomMemberViewModel> MembersDict = new();
 
-    private string _roomName = $"{Environment.UserName}的房间";
-    public string RoomName { get => _roomName; set => SetProperty(ref _roomName, value); }
+    private string _roomName = UserSettings.Instance.RoomName;
+    public string RoomName { get => _roomName; set { if (SetProperty(ref _roomName, value)) { UserSettings.Instance.RoomName = value; UserSettings.Instance.Save(); } } }
 
-    private string _userName = Environment.UserName;
-    public string UserName { get => _userName; set => SetProperty(ref _userName, value); }
+    private string _userName = UserSettings.Instance.UserName;
+    public string UserName { get => _userName; set { if (SetProperty(ref _userName, value)) { UserSettings.Instance.UserName = value; UserSettings.Instance.Save(); } } }
 
     // 房间音质（由 MainViewModel 从 AudioSettings 同步）
     private int _selectedQualityIndex = 2;

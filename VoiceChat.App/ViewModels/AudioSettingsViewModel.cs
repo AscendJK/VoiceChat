@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NAudio.CoreAudioApi;
+using VoiceChat.App.Services;
 using VoiceChat.Core.Audio;
 using VoiceChat.Core.Models;
 using VoiceChat.Core.Session;
@@ -21,14 +22,14 @@ public partial class AudioSettingsViewModel : ObservableObject
     public AudioDeviceInfo? SelectedCaptureDevice
     {
         get => _selectedCaptureDevice;
-        set { if (SetProperty(ref _selectedCaptureDevice, value)) ApplyCaptureDevice(); }
+        set { if (SetProperty(ref _selectedCaptureDevice, value)) { ApplyCaptureDevice(); SaveSettings(); } }
     }
 
     private AudioDeviceInfo? _selectedPlaybackDevice;
     public AudioDeviceInfo? SelectedPlaybackDevice
     {
         get => _selectedPlaybackDevice;
-        set { if (SetProperty(ref _selectedPlaybackDevice, value)) ApplyPlaybackDevice(); }
+        set { if (SetProperty(ref _selectedPlaybackDevice, value)) { ApplyPlaybackDevice(); SaveSettings(); } }
     }
 
     private float _inputVolume;
@@ -38,14 +39,45 @@ public partial class AudioSettingsViewModel : ObservableObject
     public bool NoiseGateEnabled
     {
         get => _noiseGateEnabled;
-        set { if (SetProperty(ref _noiseGateEnabled, value)) ApplyNoiseGateSettings(); }
+        set { if (SetProperty(ref _noiseGateEnabled, value)) { ApplyNoiseGateSettings(); SaveSettings(); } }
     }
 
     private float _noiseGateThreshold = 0.005f;
     public float NoiseGateThreshold
     {
         get => _noiseGateThreshold;
-        set { if (SetProperty(ref _noiseGateThreshold, value)) ApplyNoiseGateSettings(); }
+        set { if (SetProperty(ref _noiseGateThreshold, value)) { ApplyNoiseGateSettings(); SaveSettings(); } }
+    }
+
+    private bool _pushToTalkEnabled;
+    public bool PushToTalkEnabled
+    {
+        get => _pushToTalkEnabled;
+        set { if (SetProperty(ref _pushToTalkEnabled, value)) SaveSettings(); }
+    }
+
+    private string _pushToTalkKey = "None";
+    public string PushToTalkKey
+    {
+        get => _pushToTalkKey;
+        set { if (SetProperty(ref _pushToTalkKey, value)) SaveSettings(); }
+    }
+
+    /// <summary>PTT 按下时触发</summary>
+    public event Action? PushToTalkPressed;
+    /// <summary>PTT 松开时触发</summary>
+    public event Action? PushToTalkReleased;
+
+    public void OnPushToTalkKeyDown()
+    {
+        if (PushToTalkEnabled && _roomHost != null || _roomClient != null)
+            PushToTalkPressed?.Invoke();
+    }
+
+    public void OnPushToTalkKeyUp()
+    {
+        if (PushToTalkEnabled)
+            PushToTalkReleased?.Invoke();
     }
 
     // 用户偏好的音质（只在未连接时可编辑）
@@ -69,6 +101,7 @@ public partial class AudioSettingsViewModel : ObservableObject
                 _desiredQualityIndex = value;
                 OnPropertyChanged(nameof(SelectedQualityIndex));
                 OnPropertyChanged(nameof(SelectedQuality));
+                SaveSettings();
             }
         }
     }
@@ -149,14 +182,34 @@ public partial class AudioSettingsViewModel : ObservableObject
             foreach (var d in capDevices)
                 CaptureDevices.Add(new AudioDeviceInfo { DeviceId = d.ID, FriendlyName = d.FriendlyName?.Trim() ?? "",
                     IsDefault = d.FriendlyName?.Trim() == defaultCapture.FriendlyName, Type = d.DataFlow.ToString() });
-            SelectedCaptureDevice = CaptureDevices.FirstOrDefault(d => d.IsDefault) ?? CaptureDevices.FirstOrDefault();
 
             var pbDevices = AudioPlayer.GetPlaybackDevices();
             PlaybackDevices.Clear();
             foreach (var d in pbDevices)
                 PlaybackDevices.Add(new AudioDeviceInfo { DeviceId = d.ID, FriendlyName = d.FriendlyName?.Trim() ?? "",
                     IsDefault = d.FriendlyName?.Trim() == defaultPlayback.FriendlyName, Type = d.DataFlow.ToString() });
-            SelectedPlaybackDevice = PlaybackDevices.FirstOrDefault(d => d.IsDefault) ?? PlaybackDevices.FirstOrDefault();
+
+            // 加载用户偏好设置
+            var settings = UserSettings.Instance;
+            _noiseGateEnabled = settings.NoiseGateEnabled;
+            _noiseGateThreshold = settings.NoiseGateThreshold;
+            _desiredQualityIndex = settings.QualityIndex;
+            _actualQualityIndex = settings.QualityIndex;
+            _pushToTalkEnabled = settings.PushToTalkEnabled;
+            _pushToTalkKey = settings.PushToTalkKey;
+
+            // 恢复设备选择（优先使用上次保存的，否则用默认）
+            SelectedCaptureDevice = CaptureDevices.FirstOrDefault(d => d.DeviceId == settings.CaptureDeviceId)
+                ?? CaptureDevices.FirstOrDefault(d => d.IsDefault) ?? CaptureDevices.FirstOrDefault();
+            SelectedPlaybackDevice = PlaybackDevices.FirstOrDefault(d => d.DeviceId == settings.PlaybackDeviceId)
+                ?? PlaybackDevices.FirstOrDefault(d => d.IsDefault) ?? PlaybackDevices.FirstOrDefault();
+
+            OnPropertyChanged(nameof(NoiseGateEnabled));
+            OnPropertyChanged(nameof(NoiseGateThreshold));
+            OnPropertyChanged(nameof(SelectedQualityIndex));
+            OnPropertyChanged(nameof(SelectedQuality));
+            OnPropertyChanged(nameof(PushToTalkEnabled));
+            OnPropertyChanged(nameof(PushToTalkKey));
 
             enumerator.Dispose();
         }
@@ -261,5 +314,18 @@ public partial class AudioSettingsViewModel : ObservableObject
             player.Stop(); StatusChanged?.Invoke("本地测试完成!");
         }
         catch (Exception ex) { StatusChanged?.Invoke($"测试失败: {ex.Message}"); }
+    }
+
+    private void SaveSettings()
+    {
+        var settings = UserSettings.Instance;
+        settings.CaptureDeviceId = _selectedCaptureDevice?.DeviceId ?? string.Empty;
+        settings.PlaybackDeviceId = _selectedPlaybackDevice?.DeviceId ?? string.Empty;
+        settings.NoiseGateEnabled = _noiseGateEnabled;
+        settings.NoiseGateThreshold = _noiseGateThreshold;
+        settings.QualityIndex = _desiredQualityIndex;
+        settings.PushToTalkEnabled = _pushToTalkEnabled;
+        settings.PushToTalkKey = _pushToTalkKey;
+        settings.Save();
     }
 }

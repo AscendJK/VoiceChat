@@ -76,6 +76,15 @@ public partial class MainViewModel : ObservableObject
             _roomHost = host;
             _roomClient = client;
             AudioSettings.AttachSession(host, client);
+
+            // 订阅 PTT 事件
+            AudioSettings.PushToTalkPressed -= OnPushToTalkPressed;
+            AudioSettings.PushToTalkReleased -= OnPushToTalkReleased;
+            if (host != null || client != null)
+            {
+                AudioSettings.PushToTalkPressed += OnPushToTalkPressed;
+                AudioSettings.PushToTalkReleased += OnPushToTalkReleased;
+            }
         };
         RoomSession.AudioContextChanged += _audioContextChangedHandler;
 
@@ -171,8 +180,40 @@ public partial class MainViewModel : ObservableObject
         RoomSession?.Dispose();
     }
 
+    private void OnPushToTalkPressed()
+    {
+        SafePostToDispatcher(() =>
+        {
+            if (_roomHost != null)
+            {
+                _roomHost.GetAudioCapture()?.Start();
+            }
+            else if (_roomClient != null)
+            {
+                _roomClient.GetAudioCapture()?.Start();
+            }
+        });
+    }
+
+    private void OnPushToTalkReleased()
+    {
+        SafePostToDispatcher(() =>
+        {
+            if (_roomHost != null)
+            {
+                _roomHost.GetAudioCapture()?.Stop();
+            }
+            else if (_roomClient != null)
+            {
+                _roomClient.GetAudioCapture()?.Stop();
+            }
+        });
+    }
+
     private void UnsubscribeEvents()
     {
+        AudioSettings.PushToTalkPressed -= OnPushToTalkPressed;
+        AudioSettings.PushToTalkReleased -= OnPushToTalkReleased;
         if (_connectionStateChangedHandler != null)
             RoomSession.ConnectionStateChanged -= _connectionStateChangedHandler;
         if (_audioContextChangedHandler != null)
@@ -209,9 +250,82 @@ public partial class MainViewModel : ObservableObject
         try
         {
             StopScanner();
-            await RoomSession.JoinRoomAsync(SelectedRoom, RoomSession.UserName, null);
+
+            // 密码房间需要输入密码
+            string? password = null;
+            if (SelectedRoom.HasPassword)
+            {
+                password = ShowPasswordDialog(SelectedRoom.Name);
+                if (password == null) return; // 用户取消
+            }
+
+            await RoomSession.JoinRoomAsync(SelectedRoom, RoomSession.UserName, password);
         }
         catch (Exception ex) { StatusText = $"加入失败: {ex.Message}"; }
+    }
+
+    private string? ShowPasswordDialog(string roomName)
+    {
+        var dialog = new System.Windows.Window
+        {
+            Title = $"加入房间 - {roomName}",
+            Width = 350,
+            Height = 180,
+            WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner,
+            ResizeMode = System.Windows.ResizeMode.NoResize,
+            Background = System.Windows.Media.Brushes.White
+        };
+
+        var stack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) };
+        stack.Children.Add(new System.Windows.Controls.TextBlock
+        {
+            Text = "该房间需要密码",
+            FontSize = 14,
+            FontWeight = System.Windows.FontWeights.SemiBold,
+            Margin = new System.Windows.Thickness(0, 0, 0, 12)
+        });
+
+        var passwordBox = new System.Windows.Controls.PasswordBox
+        {
+            FontSize = 14,
+            Padding = new System.Windows.Thickness(8, 4, 8, 4),
+            Margin = new System.Windows.Thickness(0, 0, 0, 12)
+        };
+        stack.Children.Add(passwordBox);
+
+        var btnPanel = new System.Windows.Controls.StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+        };
+
+        string? result = null;
+
+        var okBtn = new System.Windows.Controls.Button
+        {
+            Content = "确定",
+            Width = 80,
+            Height = 30,
+            Margin = new System.Windows.Thickness(0, 0, 8, 0),
+            IsDefault = true
+        };
+        okBtn.Click += (s, e) => { result = passwordBox.Password; dialog.DialogResult = true; };
+        btnPanel.Children.Add(okBtn);
+
+        var cancelBtn = new System.Windows.Controls.Button
+        {
+            Content = "取消",
+            Width = 80,
+            Height = 30,
+            IsCancel = true
+        };
+        btnPanel.Children.Add(cancelBtn);
+        stack.Children.Add(btnPanel);
+
+        dialog.Content = stack;
+        passwordBox.Focus();
+
+        return dialog.ShowDialog() == true ? result : null;
     }
 
     [RelayCommand(CanExecute = nameof(CanRefreshRooms))]
