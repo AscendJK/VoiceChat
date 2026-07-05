@@ -10,6 +10,7 @@
 | --- | --- |
 | 🏠 **创建房间** | 一台电脑创建语音房间，自动向局域网广播，默认房间名带用户名 |
 | 🔍 **扫描加入** | 同一局域网内的其他电脑自动扫描发现房间，一键加入 |
+| 🔒 **密码房间** | 创建房间可设置密码，加入时需输入密码 |
 | 🗣️ **多人语音** | 房间内所有成员互相实时通话（Opus 编码 + UDP 传输） |
 | 🟢 **说话指示** | 每个用户名称前有绿色圆点，说话时亮起，800ms 自动熄灭 |
 | 🎤 **静音自己** | 随时开关麦克风 |
@@ -20,8 +21,12 @@
 | 🚪 **踢出成员** | 房主可踢出房间内的成员（不能踢自己） |
 | 💥 **解散房间** | 房主可一键解散房间，所有成员自动断开 |
 | 🎚️ **音质选择** | 创建房间可选标准（64kbps）、高清（96kbps）或超清（128kbps），默认超清 |
+| 🔌 **断线重连** | 网络断开后自动尝试重连（最多5次，指数退避） |
+| 🌙 **暗色主题** | 支持浅色/深色主题切换，标题栏点击 🌙 按钮切换 |
+| 💾 **设置持久化** | 音频设备、噪声门限、音质、用户名等偏好自动保存，重启后恢复 |
+| 📊 **网络统计** | 实时显示延迟、丢包率、发送/接收码率、包数 |
+| 🖥️ **系统托盘** | 最小化到系统托盘后台运行，右键菜单操作 |
 | 🚀 **启动闪屏** | 启动时立即出现蓝色闪屏，后台加载完成后自动消失 |
-| 🔌 **热插拔** | 通话中切换音频设备自动生效 |
 
 ---
 
@@ -92,9 +97,9 @@ dotnet publish VoiceChat.App -c Release -p:SelfContained=true -p:PublishSingleFi
 ### 加入房间（成员）
 
 1. 打开软件，点击左侧 **刷新** 扫描局域网内的房间
-2. 从列表中选择目标房间
+2. 从列表中选择目标房间（密码房间会显示 🔒 图标）
 3. 输入 **昵称**
-4. 点击 **加入房间**
+4. 点击 **加入房间**（密码房间需输入密码）
 
 ### 音频设置
 
@@ -118,6 +123,18 @@ dotnet publish VoiceChat.App -c Release -p:SelfContained=true -p:PublishSingleFi
 
 - **麦克风**：通话中实时切换
 - **扬声器**：通话中实时切换
+
+### 主题切换
+
+点击标题栏右侧的 🌙 按钮切换浅色/深色主题，选择会自动保存。
+
+### 网络统计
+
+连接房间后，底部会显示实时网络统计面板：
+- **延迟**：与对方的通信延迟（ms），无数据时显示 —
+- **丢包**：丢包率（%）
+- **发送/接收**：实时码率（B/s）
+- **发包/收包**：累计包数
 
 ---
 
@@ -161,29 +178,43 @@ VoiceChat/
 │   │   └── UdpBroadcasterScanner.cs   # UDP 房间扫描（成员）
 │   └── Session/                       # 会话管理
 │       ├── RoomHost.cs                # 房主会话
-│       └── RoomClient.cs              # 成员会话
+│       └── RoomClient.cs              # 成员会话（含断线重连）
 ├── VoiceChat.App/                     # WPF 桌面界面
-│   ├── App.xaml / App.xaml.cs         # 应用程序入口 + 闪屏管理
+│   ├── App.xaml / App.xaml.cs         # 应用程序入口 + 闪屏 + 托盘
 │   ├── MainWindow.xaml / .cs          # 主界面
 │   ├── SplashWindow.xaml / .cs        # 启动闪屏
-│   ├── Converters.cs                  # 值转换器（含说话指示颜色转换）
-│   ├── ViewModels/
-│   │   └── MainViewModel.cs           # 视图模型（MVVM）
-│   └── VoiceChat.App.ico              # 应用程序图标
-├── VoiceChat.Tests/                   # 测试项目（133 个测试）
-│   ├── VoicePacketTests.cs             # 包序列化/边界/安全
-│   ├── OpusCodecTests.cs               # 编解码/PLC/Dispose
-│   ├── AudioPreprocessorTests.cs       # AGC/噪声门/线程安全
-│   ├── VoiceReceiverTests.cs           # 包跟踪/乱序/环绕
-│   ├── SignalingTests.cs               # 协议/密码/广播
-│   ├── SessionTests.cs                 # 模型/质量配置/消息
-│   ├── VoiceQualityTests.cs            # 音质档位/码率映射
-│   ├── RoomHostTests.cs                # 房间生命周期
-│   ├── RoomClientTests.cs              # 客户端生命周期
-│   ├── E2ETests.cs                     # 端到端完整流程
-│   ├── StressTests.cs                  # 内存/性能/压力
-│   ├── UiTests.cs                      # UI 按钮状态
-│   └── PropertyChangedOrderTests.cs    # 绑定时序
+│   ├── Converters.cs                  # 值转换器
+│   ├── Services/
+│   │   ├── UserSettings.cs            # 设置持久化
+│   │   ├── ThemeService.cs            # 主题切换
+│   │   └── TrayIconService.cs         # 系统托盘
+│   ├── Themes/
+│   │   ├── LightTheme.xaml            # 浅色主题
+│   │   └── DarkTheme.xaml             # 深色主题
+│   └── ViewModels/
+│       ├── MainViewModel.cs           # 主视图模型
+│       ├── RoomSessionViewModel.cs    # 房间会话视图模型
+│       ├── AudioSettingsViewModel.cs  # 音频设置视图模型
+│       └── NetworkStatsViewModel.cs   # 网络统计视图模型
+├── VoiceChat.Tests/                   # 测试项目（201 个测试）
+│   ├── UserSettingsTests.cs           # 设置持久化
+│   ├── NetworkStatsViewModelTests.cs  # 网络统计
+│   ├── ThemeServiceTests.cs           # 主题切换
+│   ├── VoiceSenderTests.cs            # 语音发送
+│   ├── VoiceReceiverTests.cs          # 语音接收
+│   ├── RoomHostTests.cs               # 房间管理
+│   ├── RoomClientTests.cs             # 连接/断开/踢人/重连
+│   ├── SignalingTests.cs              # 信令通信
+│   ├── AudioPreprocessorTests.cs      # 音频前处理
+│   ├── OpusCodecTests.cs              # Opus 编解码
+│   ├── VoicePacketTests.cs            # 数据包序列化
+│   ├── VoiceQualityTests.cs           # 音质配置
+│   ├── SessionTests.cs                # 会话模型
+│   ├── E2ETests.cs                    # 端到端流程
+│   ├── StressTests.cs                 # 压力测试
+│   ├── UiTests.cs                     # UI 按钮状态
+│   ├── PropertyChangedOrderTests.cs   # 属性通知顺序
+│   └── QualityConsistencyTests.cs     # 音质一致性
 ├── publish_slim/                       # 精简版发布输出
 │   └── VoiceChat.App.exe              # 单文件可执行文件
 └── README.md
@@ -194,7 +225,7 @@ VoiceChat/
 ## 🧪 测试
 
 ```bash
-# 运行全部测试
+# 运行全部测试（201 个）
 dotnet test VoiceChat.Tests -c Release
 
 # 运行特定类别
@@ -221,19 +252,19 @@ dotnet publish VoiceChat.App -c Release -p:SelfContained=false -p:PublishSingleF
 │  ┌──────────┐  │  Join/Leave/   │  ┌──────────┐   │
 │  │ RoomHost │  │  MemberList    │  │RoomClient│   │
 │  └────┬─────┘  │  Heartbeat     │  └────┬─────┘   │
-│       │        │                 │       │         │
+│       │        │  + Error(Kick)  │       │         │
 │  ┌────┴─────┐  │    UDP 语音    │  ┌────┴─────┐   │
 │  │Voice     │◄──────────────────►│  │Voice     │   │
 │  │Sender    │  │  48kHz Opus     │  │Sender    │   │
-│  └──────────┘  │                 │  └──────────┘   │
-│  ┌──────────┐  │                 │  ┌──────────┐   │
-│  │Voice     │  │                 │  │Voice     │   │
+│  └──────────┘  │                │  └──────────┘   │
+│  ┌──────────┐  │                │  ┌──────────┐   │
+│  │Voice     │  │                │  │Voice     │   │
 │  │Receiver  │◄──────────────────►│  │Receiver  │   │
-│  └──────────┘  │                 │  └──────────┘   │
-│  ┌──────────┐  │                 │  ┌──────────┐   │
+│  └──────────┘  │                │  └──────────┘   │
+│  ┌──────────┐  │                │  ┌──────────┐   │
 │  │UDP 广播   │─── UDP 广播 ───────►│UDP 扫描   │   │
-│  └──────────┘  │  每1000ms       │  └──────────┘   │
-└────────────────┘                 └────────────────┘
+│  └──────────┘  │  每1000ms      │  └──────────┘   │
+└────────────────┘                └────────────────┘
 ```
 
 ### 音频处理链
@@ -244,22 +275,13 @@ dotnet publish VoiceChat.App -c Release -p:SelfContained=false -p:PublishSingleF
 UDP接收 → Opus解码(PLC) → 混音器 → WASAPI → 扬声器
 ```
 
-### 说话指示器
-
-```plaintext
-收到语音包 → OnUserSpeaking(userId)
-    → 查找 UI 成员 → MarkSpeaking()
-        → 绿色圆点亮起
-        → 800ms 定时器复位
-```
-
 ### 信令协议
 
 所有信令消息使用 JSON 序列化，4 字节小端长度前缀 + UTF-8 编码消息体。
 
 | 消息类型 | 方向 | 说明 |
 | --- | --- | --- |
-| `JoinRequest` | 成员→服务器 | 加入请求（含用户名 + 语音端口） |
+| `JoinRequest` | 成员→服务器 | 加入请求（含用户名 + 语音端口 + 密码） |
 | `JoinResponse` | 服务器→成员 | 加入结果（含成员列表 + 房主信息） |
 | `LeaveRequest` | 成员→服务器 | 离开请求 |
 | `MemberJoined` | 服务器→全体 | 通知新成员加入 |
@@ -267,6 +289,7 @@ UDP接收 → Opus解码(PLC) → 混音器 → WASAPI → 扬声器
 | `MuteSelf` / `UnmuteSelf` | 成员→服务器→全体 | 静音状态同步 |
 | `Heartbeat` / `HeartbeatAck` | 成员↔服务器 | 心跳保活 |
 | `RoomDissolved` | 服务器→全体 | 房间已解散 |
+| `Error` | 服务器→成员 | 错误通知（如被踢出） |
 
 ---
 
