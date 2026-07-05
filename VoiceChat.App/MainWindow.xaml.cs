@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using VoiceChat.App.Services;
 using VoiceChat.App.ViewModels;
 
 namespace VoiceChat.App;
@@ -44,6 +45,11 @@ public partial class MainWindow : Window
                 e.Handled = true;
             }
         }
+    }
+
+    private void ThemeToggle_Click(object sender, RoutedEventArgs e)
+    {
+        ThemeService.ToggleTheme();
     }
 
     protected override async void OnClosed(EventArgs e)
