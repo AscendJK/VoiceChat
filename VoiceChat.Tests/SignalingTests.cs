@@ -236,10 +236,10 @@ public class SignalingTests : IAsyncLifetime
         await _server.StartAsync(0);
 
         var client1 = new SignalingClient();
-        var muteTcs = new TaskCompletionSource<bool>();
+        var muteTcs = new TaskCompletionSource<string>();
         client1.OnMemberMuteChanged += (id, muted) =>
         {
-            if (muted) muteTcs.TrySetResult(true);
+            if (muted) muteTcs.TrySetResult(id);
         };
 
         await client1.ConnectAsync("127.0.0.1", _server.Port, "User1", 0);
@@ -252,8 +252,9 @@ public class SignalingTests : IAsyncLifetime
 
         await client2.SendMuteSelfAsync(true);
 
-        var received = await muteTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.True(received, "Client1 should receive mute notification from Client2");
+        var mutedId = await muteTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // SenderId 应该是 client2 的 MemberId（不再为空）
+        Assert.Equal(client2.MemberId, mutedId);
 
         client1.Dispose();
         client2.Dispose();

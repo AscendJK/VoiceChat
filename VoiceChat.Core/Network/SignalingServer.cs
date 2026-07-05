@@ -173,12 +173,14 @@ public class SignalingServer : ISignalingServer, IDisposable
     private readonly struct PendingMessage
     {
         public readonly SignalingType Type;
+        public readonly string SenderId;
         public readonly string Data;
         public readonly string? ExcludeId;
 
-        public PendingMessage(SignalingType type, string data, string? excludeId)
+        public PendingMessage(SignalingType type, string senderId, string data, string? excludeId)
         {
             Type = type;
+            SenderId = senderId;
             Data = data;
             ExcludeId = excludeId;
         }
@@ -192,7 +194,7 @@ public class SignalingServer : ISignalingServer, IDisposable
     /// </summary>
     public Task BroadcastAsync(SignalingMessage message, string? excludeId = null)
     {
-        _broadcastQueue.Enqueue(new PendingMessage(message.Type, message.Data, excludeId));
+        _broadcastQueue.Enqueue(new PendingMessage(message.Type, message.SenderId, message.Data, excludeId));
 
         // 启动后台合并处理器（如果未运行）
         lock (_broadcastLock)
@@ -238,7 +240,7 @@ public class SignalingServer : ISignalingServer, IDisposable
                     var singleMessage = new SignalingMessage
                     {
                         Type = msg.Type,
-                        SenderId = "",
+                        SenderId = msg.SenderId,
                         Data = msg.Data
                     };
 
