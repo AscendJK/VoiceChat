@@ -71,13 +71,10 @@ public partial class App : System.Windows.Application
             }
         };
 
-        // 主窗口渲染完成后，等设备初始化完毕再关闭闪屏
-        mainWindow.ContentRendered += (s, args) =>
+        // 主窗口显示后关闭闪屏
+        mainWindow.Loaded += (s, args) =>
         {
-            mainWindow._viewModel.Initialization.ContinueWith(_ =>
-            {
-                try { mainWindow.Dispatcher.Invoke(() => splash.SafeClose()); } catch { }
-            }, TaskContinuationOptions.ExecuteSynchronously);
+            splash.Close();
         };
 
         mainWindow.Show();
