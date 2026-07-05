@@ -28,8 +28,6 @@ public class UserSettingsTests : IDisposable
         Assert.True(settings.NoiseGateEnabled);
         Assert.Equal(0.005f, settings.NoiseGateThreshold);
         Assert.Equal(2, settings.QualityIndex);
-        Assert.False(settings.PushToTalkEnabled);
-        Assert.Equal("None", settings.PushToTalkKey);
     }
 
     [Fact]
@@ -42,7 +40,6 @@ public class UserSettingsTests : IDisposable
             QualityIndex = 1
         };
 
-        // 临时修改路径（通过序列化验证）
         var json = System.Text.Json.JsonSerializer.Serialize(settings);
         var restored = System.Text.Json.JsonSerializer.Deserialize<UserSettings>(json);
 
@@ -63,9 +60,7 @@ public class UserSettingsTests : IDisposable
             NoiseGateThreshold = 0.02f,
             QualityIndex = 0,
             UserName = "Alice",
-            RoomName = "Alice的房间",
-            PushToTalkEnabled = true,
-            PushToTalkKey = "Space"
+            RoomName = "Alice的房间"
         };
 
         var json = System.Text.Json.JsonSerializer.Serialize(settings);
@@ -79,14 +74,11 @@ public class UserSettingsTests : IDisposable
         Assert.Equal(settings.QualityIndex, restored.QualityIndex);
         Assert.Equal(settings.UserName, restored.UserName);
         Assert.Equal(settings.RoomName, restored.RoomName);
-        Assert.Equal(settings.PushToTalkEnabled, restored.PushToTalkEnabled);
-        Assert.Equal(settings.PushToTalkKey, restored.PushToTalkKey);
     }
 
     [Fact]
     public void Load_NoFile_ReturnsDefaults()
     {
-        // Load 静默失败，返回默认值
         var settings = new UserSettings();
         Assert.Equal(2, settings.QualityIndex);
         Assert.True(settings.NoiseGateEnabled);
@@ -99,40 +91,23 @@ public class UserSettingsTests : IDisposable
         settings.UserName = "Bob";
         settings.RoomName = "Bob的房间";
         settings.QualityIndex = 0;
-        settings.PushToTalkEnabled = true;
-        settings.PushToTalkKey = "LeftCtrl";
 
         Assert.Equal("Bob", settings.UserName);
         Assert.Equal("Bob的房间", settings.RoomName);
         Assert.Equal(0, settings.QualityIndex);
-        Assert.True(settings.PushToTalkEnabled);
-        Assert.Equal("LeftCtrl", settings.PushToTalkKey);
     }
 
     [Fact]
     public void QualityIndex_Values()
     {
         var settings = new UserSettings();
-        settings.QualityIndex = 0; // Standard
+        settings.QualityIndex = 0;
         Assert.Equal(0, settings.QualityIndex);
 
-        settings.QualityIndex = 1; // HighDefinition
+        settings.QualityIndex = 1;
         Assert.Equal(1, settings.QualityIndex);
 
-        settings.QualityIndex = 2; // UltraHigh
+        settings.QualityIndex = 2;
         Assert.Equal(2, settings.QualityIndex);
-    }
-
-    [Fact]
-    public void PushToTalk_KeyOptions()
-    {
-        var settings = new UserSettings();
-        string[] validKeys = ["None", "LeftCtrl", "RightCtrl", "LeftShift", "RightShift", "Space", "Z", "X", "C", "V"];
-
-        foreach (var key in validKeys)
-        {
-            settings.PushToTalkKey = key;
-            Assert.Equal(key, settings.PushToTalkKey);
-        }
     }
 }

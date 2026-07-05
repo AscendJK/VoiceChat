@@ -21,8 +21,6 @@ public class UserSettings
     public int QualityIndex { get; set; } = 2;
     public string UserName { get; set; } = Environment.UserName;
     public string RoomName { get; set; } = $"{Environment.UserName}的房间";
-    public bool PushToTalkEnabled { get; set; }
-    public string PushToTalkKey { get; set; } = "None";
 
     private static UserSettings? _instance;
     public static UserSettings Instance => _instance ??= Load();

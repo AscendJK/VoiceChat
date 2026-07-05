@@ -79,22 +79,6 @@ public partial class MainViewModel : ObservableObject
             _roomClient = client;
             AudioSettings.AttachSession(host, client);
 
-            // 订阅 PTT 事件
-            AudioSettings.PushToTalkPressed -= OnPushToTalkPressed;
-            AudioSettings.PushToTalkReleased -= OnPushToTalkReleased;
-            if (host != null || client != null)
-            {
-                AudioSettings.PushToTalkPressed += OnPushToTalkPressed;
-                AudioSettings.PushToTalkReleased += OnPushToTalkReleased;
-
-                // PTT 模式下，立即停止自动采集（等按键时再启动）
-                if (AudioSettings.PushToTalkEnabled)
-                {
-                    host?.GetAudioCapture()?.Stop();
-                    client?.GetAudioCapture()?.Stop();
-                }
-            }
-
             // 更新网络统计
             StartStatsTimer();
         };
@@ -192,36 +176,6 @@ public partial class MainViewModel : ObservableObject
         RoomSession?.Dispose();
     }
 
-    private void OnPushToTalkPressed()
-    {
-        SafePostToDispatcher(() =>
-        {
-            if (_roomHost != null)
-            {
-                _roomHost.GetAudioCapture()?.Start();
-            }
-            else if (_roomClient != null)
-            {
-                _roomClient.GetAudioCapture()?.Start();
-            }
-        });
-    }
-
-    private void OnPushToTalkReleased()
-    {
-        SafePostToDispatcher(() =>
-        {
-            if (_roomHost != null)
-            {
-                _roomHost.GetAudioCapture()?.Stop();
-            }
-            else if (_roomClient != null)
-            {
-                _roomClient.GetAudioCapture()?.Stop();
-            }
-        });
-    }
-
     private void StartStatsTimer()
     {
         _statsTimer?.Stop();
@@ -253,8 +207,6 @@ public partial class MainViewModel : ObservableObject
 
     private void UnsubscribeEvents()
     {
-        AudioSettings.PushToTalkPressed -= OnPushToTalkPressed;
-        AudioSettings.PushToTalkReleased -= OnPushToTalkReleased;
         _statsTimer?.Stop();
         _statsTimer = null;
         NetworkStats.IsStatsVisible = false;

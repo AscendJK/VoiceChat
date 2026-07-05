@@ -49,37 +49,6 @@ public partial class AudioSettingsViewModel : ObservableObject
         set { if (SetProperty(ref _noiseGateThreshold, value)) { ApplyNoiseGateSettings(); SaveSettings(); } }
     }
 
-    private bool _pushToTalkEnabled;
-    public bool PushToTalkEnabled
-    {
-        get => _pushToTalkEnabled;
-        set { if (SetProperty(ref _pushToTalkEnabled, value)) SaveSettings(); }
-    }
-
-    private string _pushToTalkKey = "None";
-    public string PushToTalkKey
-    {
-        get => _pushToTalkKey;
-        set { if (SetProperty(ref _pushToTalkKey, value)) SaveSettings(); }
-    }
-
-    /// <summary>PTT 按下时触发</summary>
-    public event Action? PushToTalkPressed;
-    /// <summary>PTT 松开时触发</summary>
-    public event Action? PushToTalkReleased;
-
-    public void OnPushToTalkKeyDown()
-    {
-        if (PushToTalkEnabled && (_roomHost != null || _roomClient != null))
-            PushToTalkPressed?.Invoke();
-    }
-
-    public void OnPushToTalkKeyUp()
-    {
-        if (PushToTalkEnabled)
-            PushToTalkReleased?.Invoke();
-    }
-
     // 用户偏好的音质（只在未连接时可编辑）
     private int _desiredQualityIndex = 2; // 默认超清 128kbps
 
@@ -195,8 +164,6 @@ public partial class AudioSettingsViewModel : ObservableObject
             _noiseGateThreshold = settings.NoiseGateThreshold;
             _desiredQualityIndex = settings.QualityIndex;
             _actualQualityIndex = settings.QualityIndex;
-            _pushToTalkEnabled = settings.PushToTalkEnabled;
-            _pushToTalkKey = settings.PushToTalkKey;
 
             // 恢复设备选择（优先使用上次保存的，否则用默认）
             SelectedCaptureDevice = CaptureDevices.FirstOrDefault(d => d.DeviceId == settings.CaptureDeviceId)
@@ -208,8 +175,6 @@ public partial class AudioSettingsViewModel : ObservableObject
             OnPropertyChanged(nameof(NoiseGateThreshold));
             OnPropertyChanged(nameof(SelectedQualityIndex));
             OnPropertyChanged(nameof(SelectedQuality));
-            OnPropertyChanged(nameof(PushToTalkEnabled));
-            OnPropertyChanged(nameof(PushToTalkKey));
 
             enumerator.Dispose();
         }
@@ -324,8 +289,6 @@ public partial class AudioSettingsViewModel : ObservableObject
         settings.NoiseGateEnabled = _noiseGateEnabled;
         settings.NoiseGateThreshold = _noiseGateThreshold;
         settings.QualityIndex = _desiredQualityIndex;
-        settings.PushToTalkEnabled = _pushToTalkEnabled;
-        settings.PushToTalkKey = _pushToTalkKey;
         settings.Save();
     }
 }

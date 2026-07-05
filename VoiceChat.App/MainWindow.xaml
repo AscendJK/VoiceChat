@@ -195,22 +195,6 @@
                         <Slider Value="{Binding AudioSettings.NoiseGateThreshold}" Minimum="0.001" Maximum="0.05" SmallChange="0.001" LargeChange="0.005" TickFrequency="0.001" IsSnapToTickEnabled="True" Width="120" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding AudioSettings.NoiseGateThreshold, StringFormat=F3}" FontSize="12" Foreground="{DynamicResource SecondaryText}" Width="50" Margin="4,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
-                        <CheckBox IsChecked="{Binding AudioSettings.PushToTalkEnabled}" Content="🗣️ 按键说话" FontSize="13" Foreground="{DynamicResource PrimaryText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBlock Text="按键：" FontSize="12" Foreground="{DynamicResource SecondaryText}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                        <ComboBox SelectedItem="{Binding AudioSettings.PushToTalkKey}" Width="120" Height="28" VerticalAlignment="Center" IsEnabled="{Binding AudioSettings.PushToTalkEnabled}">
-                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">None</sys:String>
-                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">LeftCtrl</sys:String>
-                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">RightCtrl</sys:String>
-                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">LeftShift</sys:String>
-                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">RightShift</sys:String>
-                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">Space</sys:String>
-                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">Z</sys:String>
-                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">X</sys:String>
-                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">C</sys:String>
-                            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">V</sys:String>
-                        </ComboBox>
-                    </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="🔊 扬声器设置" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource PrimaryText}" Margin="0,0,0,8"/>
