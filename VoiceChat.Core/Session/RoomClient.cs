@@ -501,6 +501,11 @@ public class RoomClient : IRoomClient, IDisposable, IAsyncDisposable
 
     private void HandleError(string error)
     {
+        // 被踢出时标记为非自愿断开，阻止自动重连
+        if (error.Contains("踢出"))
+        {
+            _intentionalDisconnect = true;
+        }
         OnError?.Invoke(error);
     }
 
