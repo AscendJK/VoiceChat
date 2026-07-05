@@ -303,4 +303,88 @@ public class RoomClientTests : IAsyncLifetime
         Assert.NotNull(_client.CurrentRoom);
         Assert.Equal("TestRoom", _client.CurrentRoom.Name);
     }
+
+    [Fact]
+    public async Task KickUser_ReconnectBlocked()
+    {
+        // 房主创建房间
+        var host = new RoomHost();
+        await host.CreateAsync("KickTest", "Host", 0, null, VoiceQuality.Standard);
+        int port = GetServerPort(host);
+
+        // 客户端加入
+        _client = new RoomClient();
+        var connectedTcs = new TaskCompletionSource<bool>();
+        var disconnectedTcs = new TaskCompletionSource<bool>();
+        var reconnectingTcs = new TaskCompletionSource<int>();
+        _client.OnConnected += _ => connectedTcs.TrySetResult(true);
+        _client.OnError += _ => { };
+        _client.OnDisconnected += () => disconnectedTcs.TrySetResult(true);
+        _client.OnReconnecting += (attempt, _) => reconnectingTcs.TrySetResult(attempt);
+
+        var roomInfo = new RoomInfo
+        {
+            HostAddress = "127.0.0.1",
+            SignalingPort = port,
+            VoicePort = 12400,
+            Quality = VoiceQuality.Standard
+        };
+        await _client.ConnectAsync(roomInfo, "Joiner");
+        await connectedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        string? memberId = _client.MemberId;
+        Assert.NotNull(memberId);
+
+        // 房主踢出客户端
+        await host.KickMemberAsync(memberId!);
+
+        // 等待客户端收到断连通知
+        await disconnectedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // 给重连逻辑一点时间，如果有的话
+        await Task.Delay(500);
+
+        // 验证没有触发重连
+        Assert.False(reconnectingTcs.Task.IsCompletedSuccessfully,
+            "Reconnect should not have been triggered after being kicked");
+
+        await host.CloseAsync();
+        host.Dispose();
+    }
+
+    [Fact]
+    public async Task Disconnect_Intentional_NoReconnect()
+    {
+        _client = new RoomClient();
+        var tcs = new TaskCompletionSource<RoomInfo>();
+        _client.OnConnected += room => tcs.TrySetResult(room);
+
+        await _client.ConnectAsync(new RoomInfo
+        {
+            HostAddress = "127.0.0.1",
+            SignalingPort = _server!.Port,
+            VoicePort = 12401,
+            Quality = VoiceQuality.Standard
+        }, "TestUser");
+
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(_client.IsConnected);
+
+        // 主动断开
+        await _client.DisconnectAsync();
+        await Task.Delay(500);
+
+        // 不应重连
+        Assert.False(_client.IsConnected);
+    }
+
+    private int GetServerPort(RoomHost host)
+    {
+        var field = host.GetType().GetField("_server",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var server = field?.GetValue(host);
+        if (server == null) return 0;
+        var portProp = server.GetType().GetProperty("Port");
+        return (int)(portProp?.GetValue(server) ?? 0);
+    }
 }
